@@ -1,0 +1,134 @@
+version: "2"
+
+linters:
+  enable:
+    - asasalint
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - canonicalheader
+    - contextcheck
+    - copyloopvar
+    - cyclop
+    - decorder
+    - dogsled
+    - dupl
+    - dupword
+    - durationcheck
+    - err113
+    - errcheck
+    - errchkjson
+    - errname
+    - errorlint
+    - exhaustive
+    - exptostd
+    - fatcontext
+    - forbidigo
+    - forcetypeassert
+    - funlen
+    - ginkgolinter
+    - gocheckcompilerdirectives
+    - gochecknoglobals
+    - gochecknoinits
+    - gochecksumtype
+    - gocognit
+    - goconst
+    - gocritic
+    - gocyclo
+    - godot
+    - godox
+    - goheader
+    - gomoddirectives
+    - gomodguard
+    - goprintffuncname
+    - gosec
+    - gosmopolitan
+    - govet
+    - grouper
+    - iface
+    - importas
+    - inamedparam
+    - ineffassign
+    - interfacebloat
+    - intrange
+    - lll
+    - loggercheck
+    - maintidx
+    - makezero
+    - mirror
+    - misspell
+    - mnd
+    - musttag
+    - nakedret
+    - nestif
+    - nilerr
+    - nilnesserr
+    - nilnil
+    - nlreturn
+    - noctx
+    - nolintlint
+    - nosprintfhostport
+    - paralleltest
+    - perfsprint
+    - prealloc
+    - predeclared
+    - promlinter
+    - protogetter
+    - reassign
+    - recvcheck
+    - revive
+    - rowserrcheck
+    - sloglint
+    - spancheck
+    - sqlclosecheck
+    - staticcheck
+    - tagalign
+    - tagliatelle
+    - testableexamples
+    - testifylint
+    - testpackage
+    - thelper
+    - tparallel
+    - unconvert
+    - unparam
+    - unused
+    - usestdlibvars
+    - usetesting
+    - wastedassign
+    - whitespace
+    - wsl
+    - zerologlint
+  exclusions:
+    rules:
+      - linters:
+          - contextcheck
+        text: "^Non-inherited new context"
+      - path: (.*)_test.go
+        linters:
+          - fatcontext
+        text: "nested context in loop"
+      - linters:
+          - revive
+        text: "^(exported|unexported-return)"
+      - linters:
+          - godox
+        text: "TODO"
+      - path: (.+)_test.go
+        linters:
+          - revive
+        text: "^(add-constant|context-as-argument|context-keys-type)"
+      - path: (.+)_test.go
+        linters:
+          - staticcheck
+        text: "SA1029"
+      - path: examples/(.+)/main.go
+        linters:
+          - forbidigo
+          - forcetypeassert
+          - mnd
+          - revive
+        text: "(forbidden by pattern|type assertion|Magic number|package-comments)"
+      - path: example_test.go
+        linters:
+          - testableexamples
+        text: "missing output for example"
