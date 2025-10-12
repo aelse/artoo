@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/aelse/artoo/agent"
@@ -15,5 +16,7 @@ func main() {
 		option.WithAPIKey(os.Getenv("ANTHROPIC_API_KEY")),
 	)
 	a := agent.New(client)
-	a.Run(ctx)
+	if err := a.Run(ctx); err != nil {
+		fmt.Printf("Terminated with error: %s\n", err.Error())
+	}
 }

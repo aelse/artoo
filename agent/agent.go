@@ -8,7 +8,6 @@ import (
 	"math/rand"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/aelse/artoo/ansi"
 	"github.com/anthropics/anthropic-sdk-go"
@@ -29,7 +28,6 @@ type RandomNumberResponse struct {
 }
 
 func New(client anthropic.Client) *Agent {
-	rand.Seed(time.Now().UnixNano())
 	return &Agent{
 		client:       client,
 		conversation: make([]anthropic.MessageParam, 0),
