@@ -1,6 +1,7 @@
+// Package ansi provides ANSI escape codes for terminal text formatting.
 package ansi
 
-// Reset and formatting
+// Reset and formatting.
 const (
 	Reset     = "\u001b[0m"
 	Bold      = "\u001b[1m"
@@ -12,7 +13,7 @@ const (
 	Strike    = "\u001b[9m"
 )
 
-// Foreground colors
+// Foreground colours.
 const (
 	Red     = "\u001b[31m"
 	Green   = "\u001b[32m"
@@ -24,7 +25,7 @@ const (
 	White   = "\u001b[97m"
 )
 
-// Bright foreground colors
+// Bright foreground colours.
 const (
 	BrightRed     = "\u001b[91m"
 	BrightGreen   = "\u001b[92m"
@@ -36,7 +37,7 @@ const (
 	BrightWhite   = White
 )
 
-// Background colors
+// Background colours.
 const (
 	BgRed     = "\u001b[41m"
 	BgGreen   = "\u001b[42m"
@@ -48,7 +49,7 @@ const (
 	BgWhite   = "\u001b[107m"
 )
 
-// Bright background colors
+// Bright background colours.
 const (
 	BgBrightRed     = "\u001b[101m"
 	BgBrightGreen   = "\u001b[102m"

@@ -1,3 +1,4 @@
+// Package main is the entry point for the Artoo agent application.
 package main
 
 import (
@@ -16,7 +17,8 @@ func main() {
 		option.WithAPIKey(os.Getenv("ANTHROPIC_API_KEY")),
 	)
 	a := agent.New(client)
+
 	if err := a.Run(ctx); err != nil {
-		fmt.Printf("Terminated with error: %s\n", err.Error())
+		_, _ = fmt.Fprintf(os.Stderr, "Terminated with error: %s\n", err.Error())
 	}
 }

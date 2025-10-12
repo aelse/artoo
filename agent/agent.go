@@ -1,12 +1,16 @@
+// Package agent provides the core agent functionality for interacting with Claude.
 package agent
 
 import (
 	"bufio"
 	"context"
+	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"math/rand"
+	"math/big"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/aelse/artoo/ansi"
@@ -27,6 +31,8 @@ type RandomNumberResponse struct {
 	Number int `json:"number"`
 }
 
+var errMinGreaterThanMax = errors.New("min value cannot be greater than max value")
+
 func New(client anthropic.Client) *Agent {
 	return &Agent{
 		client:       client,
@@ -36,15 +42,79 @@ func New(client anthropic.Client) *Agent {
 
 func (a *Agent) generateRandomNumber(params RandomNumberParams) (*RandomNumberResponse, error) {
 	if params.Min > params.Max {
-		return nil, fmt.Errorf("min value cannot be greater than max value")
+		return nil, errMinGreaterThanMax
 	}
-	return &RandomNumberResponse{rand.Intn(params.Max-params.Min+1) + params.Min}, nil
+
+	// Use crypto/rand for secure random number generation.
+	rangeSize := params.Max - params.Min + 1
+	n, err := rand.Int(rand.Reader, big.NewInt(int64(rangeSize)))
+
+	if err != nil {
+		return nil, fmt.Errorf("generating random number: %w", err)
+	}
+
+	return &RandomNumberResponse{Number: int(n.Int64()) + params.Min}, nil
 }
+
+const maxTokens = 1024
 
 func (a *Agent) Run(ctx context.Context) error {
 	scanner := bufio.NewScanner(os.Stdin)
+	tools := a.setupTools()
 
-	// Define tools
+	_, _ = fmt.Fprintln(os.Stdout, ansi.BrightCyan+"Artoo Agent"+ansi.Reset+" - Type 'quit' to exit")
+
+	readyForUserInput := true
+
+	for {
+		var userInput string
+
+		if readyForUserInput {
+			userInput = a.getUserInput(scanner)
+			if userInput == "" {
+				break
+			}
+
+			if userInput == "quit" || userInput == "exit" {
+				break
+			}
+
+			a.conversation = append(a.conversation, anthropic.NewUserMessage(
+				anthropic.NewTextBlock(userInput),
+			))
+			readyForUserInput = false
+		}
+
+		a.printConversation()
+
+		message, err := a.callClaude(ctx, tools)
+		if err != nil {
+			_, _ = fmt.Fprintf(os.Stdout, ansi.Red+"Error: %v"+ansi.Reset+"\n", err)
+
+			continue
+		}
+
+		toolResults, hasToolUse := a.processResponse(message)
+
+		if len(toolResults) > 0 {
+			a.conversation = append(a.conversation, anthropic.NewUserMessage(toolResults...))
+		}
+
+		if !hasToolUse {
+			readyForUserInput = true
+		}
+
+		_, _ = fmt.Fprint(os.Stdout, "\n\n")
+	}
+
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("reading input: %w", err)
+	}
+
+	return nil
+}
+
+func (a *Agent) setupTools() []anthropic.ToolUnionParam {
 	toolParams := []anthropic.ToolParam{
 		{
 			Name:        "generate_random_number",
@@ -64,127 +134,137 @@ func (a *Agent) Run(ctx context.Context) error {
 			},
 		},
 	}
+
 	tools := make([]anthropic.ToolUnionParam, len(toolParams))
 	for i, toolParam := range toolParams {
 		tools[i] = anthropic.ToolUnionParam{OfTool: &toolParam}
 	}
 
-	fmt.Println(ansi.BrightCyan + "Artoo Agent" + ansi.Reset + " - Type 'quit' to exit")
+	return tools
+}
 
-	readyForUserInput := true
+func (a *Agent) getUserInput(scanner *bufio.Scanner) string {
+	_, _ = fmt.Fprint(os.Stdout, ansi.Green+"You"+ansi.Reset+": ")
 
-	for {
-		var userInput string
-		if readyForUserInput {
-			fmt.Print(ansi.Green + "You" + ansi.Reset + ": ")
+	if !scanner.Scan() {
+		return ""
+	}
 
-			if !scanner.Scan() {
-				break
-			}
+	userInput := strings.TrimSpace(scanner.Text())
+	if userInput == "" {
+		return userInput
+	}
 
-			userInput = strings.TrimSpace(scanner.Text())
+	_, _ = fmt.Fprintln(os.Stdout, "user input: "+userInput)
 
-			if userInput == "quit" || userInput == "exit" {
-				break
-			}
+	return userInput
+}
 
-			if userInput == "" {
-				continue
-			}
+func (a *Agent) printConversation() {
+	_, _ = fmt.Fprintf(os.Stdout, "Calling claude with conversation:\n")
 
-			fmt.Println("user input:", userInput)
-
-			// Add user message to conversation
-			a.conversation = append(a.conversation, anthropic.NewUserMessage(
-				anthropic.NewTextBlock(userInput),
-			))
-
-			readyForUserInput = false
-		}
-
-		fmt.Printf("Calling claude with conversation:\n")
-		for i := range a.conversation {
-			m, _ := json.Marshal(a.conversation[i])
-			fmt.Printf("[%d] %s\n", i, string(m))
-		}
-
-		// Call Claude API
-		message, err := a.client.Messages.New(ctx, anthropic.MessageNewParams{
-			Model:     anthropic.ModelClaude4Sonnet20250514,
-			MaxTokens: 1024,
-			Messages:  a.conversation,
-			Tools:     tools,
-		})
-
+	for i := range a.conversation {
+		m, err := json.Marshal(a.conversation[i])
 		if err != nil {
-			fmt.Printf(ansi.Red+"Error: %v"+ansi.Reset+"\n", err)
+			_, _ = fmt.Fprintf(os.Stdout, "[%d] error marshalling: %v\n", i, err)
+
 			continue
 		}
 
-		// Process Claude's response
-		var toolResults []anthropic.ContentBlockParamUnion
-		hasToolUse := false
+		_, _ = fmt.Fprintf(os.Stdout, "[%d] %s\n", i, string(m))
+	}
+}
 
-		fmt.Print(ansi.Blue + "Claude" + ansi.Reset + ": ")
+func (a *Agent) callClaude(ctx context.Context, tools []anthropic.ToolUnionParam) (*anthropic.Message, error) {
+	message, err := a.client.Messages.New(ctx, anthropic.MessageNewParams{
+		Model:     anthropic.ModelClaude4Sonnet20250514,
+		MaxTokens: maxTokens,
+		Messages:  a.conversation,
+		Tools:     tools,
+	})
 
-		for _, block := range message.Content {
-			switch block := block.AsAny().(type) {
-			case anthropic.TextBlock:
-				fmt.Println("text: " + block.Text)
-			case anthropic.ToolUseBlock:
-				inputJSON, _ := json.Marshal(block.Input)
-				fmt.Println(block.Name + ": " + string(inputJSON))
-			}
+	return message, err
+}
+
+func (a *Agent) processResponse(message *anthropic.Message) ([]anthropic.ContentBlockParamUnion, bool) {
+	var toolResults []anthropic.ContentBlockParamUnion
+
+	hasToolUse := false
+
+	_, _ = fmt.Fprint(os.Stdout, ansi.Blue+"Claude"+ansi.Reset+": ")
+
+	a.printMessageContent(message)
+	a.conversation = append(a.conversation, message.ToParam())
+
+	for _, block := range message.Content {
+		variant, ok := block.AsAny().(anthropic.ToolUseBlock)
+		if !ok {
+			continue
 		}
 
-		a.conversation = append(a.conversation, message.ToParam())
+		hasToolUse = true
 
-		for _, block := range message.Content {
-			switch variant := block.AsAny().(type) {
-			case anthropic.ToolUseBlock:
-				hasToolUse = true
-				fmt.Print("[user (" + block.Name + ")]: ")
-				var response interface{}
-				switch block.Name {
-				case "generate_random_number":
-					var params RandomNumberParams
-					err := json.Unmarshal([]byte(variant.JSON.Input.Raw()), &params)
-					if err != nil {
-						panic(err)
-					}
-					randomNumResp, err := a.generateRandomNumber(params)
-					if err != nil {
-						toolResults = append(toolResults, anthropic.NewToolResultBlock(block.ID, fmt.Sprintf("Error: %v", err), true))
-					} else {
-						fmt.Printf("\n[Generated random number: %d]", randomNumResp.Number)
-						response = randomNumResp
-						toolResults = append(toolResults, anthropic.NewToolResultBlock(block.ID, fmt.Sprintf("%d", randomNumResp.Number), false))
-					}
-				}
-
-				b, err := json.Marshal(response)
-				if err != nil {
-					panic("error marshalling tool response")
-				}
-				println(string(b))
-				//toolResults = append(toolResults, anthropic.NewToolResultBlock(block.ID, string(b), false))
-			}
+		result := a.handleToolUse(variant)
+		if result != nil {
+			toolResults = append(toolResults, *result)
 		}
-
-		if len(toolResults) > 0 {
-			a.conversation = append(a.conversation, anthropic.NewUserMessage(toolResults...))
-		}
-
-		// If tools were used, send the results back to Claude by not setting ready for user input
-		if !hasToolUse {
-			readyForUserInput = true
-		}
-
-		fmt.Print("\n\n")
 	}
 
-	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("reading input: %w", err)
+	return toolResults, hasToolUse
+}
+
+func (a *Agent) printMessageContent(message *anthropic.Message) {
+	for _, block := range message.Content {
+		switch block := block.AsAny().(type) {
+		case anthropic.TextBlock:
+			_, _ = fmt.Fprintln(os.Stdout, "text: "+block.Text)
+		case anthropic.ToolUseBlock:
+			inputJSON, err := json.Marshal(block.Input)
+			if err != nil {
+				_, _ = fmt.Fprintln(os.Stdout, "error marshalling input: "+err.Error())
+
+				continue
+			}
+
+			_, _ = fmt.Fprintln(os.Stdout, block.Name+": "+string(inputJSON))
+		}
+	}
+}
+
+func (a *Agent) handleToolUse(block anthropic.ToolUseBlock) *anthropic.ContentBlockParamUnion {
+	_, _ = fmt.Fprint(os.Stdout, "[user ("+block.Name+")]: ")
+
+	if block.Name == "generate_random_number" {
+		var params RandomNumberParams
+
+		err := json.Unmarshal([]byte(block.JSON.Input.Raw()), &params)
+		if err != nil {
+			_, _ = fmt.Fprintf(os.Stdout, "error unmarshalling params: %v\n", err)
+
+			return nil
+		}
+
+		randomNumResp, err := a.generateRandomNumber(params)
+		if err != nil {
+			result := anthropic.NewToolResultBlock(block.ID, fmt.Sprintf("Error: %v", err), true)
+
+			return &result
+		}
+
+		_, _ = fmt.Fprintf(os.Stdout, "\n[Generated random number: %d]", randomNumResp.Number)
+
+		result := anthropic.NewToolResultBlock(block.ID, strconv.Itoa(randomNumResp.Number), false)
+
+		b, err := json.Marshal(randomNumResp)
+		if err != nil {
+			_, _ = fmt.Fprintln(os.Stdout, "error marshalling tool response: "+err.Error())
+
+			return &result
+		}
+
+		_, _ = fmt.Fprintln(os.Stdout, string(b))
+
+		return &result
 	}
 
 	return nil
@@ -193,5 +273,6 @@ func (a *Agent) Run(ctx context.Context) error {
 func Run(ctx context.Context) error {
 	client := anthropic.NewClient()
 	agent := New(client)
+
 	return agent.Run(ctx)
 }
