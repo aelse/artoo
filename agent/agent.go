@@ -12,8 +12,11 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/anthropics/anthropic-sdk-go"
+	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -31,6 +34,11 @@ type RandomNumberResponse struct {
 	Number int `json:"number"`
 }
 
+const (
+	maxTokens           = 1024
+	spinnerTickInterval = 100 * time.Millisecond
+)
+
 var (
 	errMinGreaterThanMax = errors.New("min value cannot be greater than max value")
 
@@ -41,10 +49,63 @@ var (
 )
 
 func init() {
-	titleStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("14")).Bold(true)  // Bright cyan
+	titleStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("14")).Bold(true) // Bright cyan
 	userStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("10"))             // Green
 	claudeStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("12"))           // Blue
 	errorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Bold(true)  // Red
+}
+
+// spinnerRunner manages a simple terminal spinner.
+type spinnerRunner struct {
+	model   spinner.Model
+	message string
+	quit    chan bool
+	done    sync.WaitGroup
+}
+
+// newSpinner creates a new spinner with the given message.
+func newSpinner(message string) *spinnerRunner {
+	s := spinner.New()
+	s.Spinner = spinner.Points
+	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+
+	return &spinnerRunner{
+		model:   s,
+		message: message,
+		quit:    make(chan bool),
+	}
+}
+
+// start begins the spinner animation.
+func (s *spinnerRunner) start() {
+	s.done.Add(1)
+
+	go func() {
+		defer s.done.Done()
+
+		ticker := time.NewTicker(spinnerTickInterval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-s.quit:
+				// Clear the spinner line.
+				_, _ = fmt.Fprint(os.Stdout, "\r\033[K")
+
+				return
+			case <-ticker.C:
+				s.model, _ = s.model.Update(s.model.Tick())
+				frame := s.model.View()
+				_, _ = fmt.Fprintf(os.Stdout, "\r%s %s", frame, s.message)
+			}
+		}
+	}()
+}
+
+// stop ends the spinner animation and clears the line.
+func (s *spinnerRunner) stop() {
+	close(s.quit)
+	s.done.Wait()
 }
 
 func New(client anthropic.Client) *Agent {
@@ -69,8 +130,6 @@ func (a *Agent) generateRandomNumber(params RandomNumberParams) (*RandomNumberRe
 
 	return &RandomNumberResponse{Number: int(n.Int64()) + params.Min}, nil
 }
-
-const maxTokens = 1024
 
 func (a *Agent) Run(ctx context.Context) error {
 	scanner := bufio.NewScanner(os.Stdin)
@@ -190,6 +249,10 @@ func (a *Agent) printConversation() {
 }
 
 func (a *Agent) callClaude(ctx context.Context, tools []anthropic.ToolUnionParam) (*anthropic.Message, error) {
+	spin := newSpinner("Thinking...")
+	spin.start()
+	defer spin.stop()
+
 	message, err := a.client.Messages.New(ctx, anthropic.MessageNewParams{
 		Model:     anthropic.ModelClaude4Sonnet20250514,
 		MaxTokens: maxTokens,
@@ -246,9 +309,11 @@ func (a *Agent) printMessageContent(message *anthropic.Message) {
 }
 
 func (a *Agent) handleToolUse(block anthropic.ToolUseBlock) *anthropic.ContentBlockParamUnion {
-	_, _ = fmt.Fprint(os.Stdout, "[user ("+block.Name+")]: ")
-
 	if block.Name == "generate_random_number" {
+		spin := newSpinner("Generating random number...")
+		spin.start()
+		defer spin.stop()
+
 		var params RandomNumberParams
 
 		err := json.Unmarshal([]byte(block.JSON.Input.Raw()), &params)
@@ -265,7 +330,7 @@ func (a *Agent) handleToolUse(block anthropic.ToolUseBlock) *anthropic.ContentBl
 			return &result
 		}
 
-		_, _ = fmt.Fprintf(os.Stdout, "\n[Generated random number: %d]", randomNumResp.Number)
+		_, _ = fmt.Fprintf(os.Stdout, "[Generated random number: %d]\n", randomNumResp.Number)
 
 		result := anthropic.NewToolResultBlock(block.ID, strconv.Itoa(randomNumResp.Number), false)
 
