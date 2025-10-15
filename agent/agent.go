@@ -2,7 +2,6 @@
 package agent
 
 import (
-	"bufio"
 	"context"
 	"crypto/rand"
 	"encoding/json"
@@ -17,6 +16,8 @@ import (
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/bubbles/textinput"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -45,14 +46,18 @@ var (
 	titleStyle  lipgloss.Style
 	userStyle   lipgloss.Style
 	claudeStyle lipgloss.Style
+	debugStyle  lipgloss.Style
 	errorStyle  lipgloss.Style
+	promptStyle lipgloss.Style
 )
 
 func init() {
 	titleStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("14")).Bold(true) // Bright cyan
-	userStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("10"))             // Green
+	userStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))            // Magenta
 	claudeStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("12"))           // Blue
+	debugStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))             // Grey
 	errorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Bold(true)  // Red
+	promptStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))          // Magenta
 }
 
 // spinnerRunner manages a simple terminal spinner.
@@ -67,7 +72,7 @@ type spinnerRunner struct {
 func newSpinner(message string) *spinnerRunner {
 	s := spinner.New()
 	s.Spinner = spinner.Points
-	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+	s.Style = promptStyle
 
 	return &spinnerRunner{
 		model:   s,
@@ -108,6 +113,68 @@ func (s *spinnerRunner) stop() {
 	s.done.Wait()
 }
 
+// inputModel is the Bubble Tea model for text input.
+type inputModel struct {
+	textInput textinput.Model
+	submitted bool
+	value     string
+}
+
+// newInputModel creates a new input model.
+func newInputModel() inputModel {
+	ti := textinput.New()
+	ti.Placeholder = ""
+	ti.Focus()
+	ti.Prompt = userStyle.Render("> ")
+	ti.PromptStyle = lipgloss.NewStyle()
+	ti.TextStyle = lipgloss.NewStyle()
+	ti.Cursor.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+
+	return inputModel{
+		textInput: ti,
+		submitted: false,
+	}
+}
+
+// Init initializes the input model.
+func (m inputModel) Init() tea.Cmd {
+	return textinput.Blink
+}
+
+// Update handles input events.
+func (m inputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		switch keyMsg.Type {
+		case tea.KeyEnter:
+			m.value = m.textInput.Value()
+			m.submitted = true
+
+			return m, tea.Quit
+		case tea.KeyCtrlC, tea.KeyEsc:
+			m.value = ""
+			m.submitted = true
+
+			return m, tea.Quit
+		default:
+			// Let textinput handle other keys.
+			m.textInput, cmd = m.textInput.Update(msg)
+
+			return m, cmd
+		}
+	}
+
+	m.textInput, cmd = m.textInput.Update(msg)
+
+	return m, cmd
+}
+
+// View renders the input model.
+func (m inputModel) View() string {
+	return m.textInput.View()
+}
+
 func New(client anthropic.Client) *Agent {
 	return &Agent{
 		client:       client,
@@ -132,7 +199,6 @@ func (a *Agent) generateRandomNumber(params RandomNumberParams) (*RandomNumberRe
 }
 
 func (a *Agent) Run(ctx context.Context) error {
-	scanner := bufio.NewScanner(os.Stdin)
 	tools := a.setupTools()
 
 	_, _ = fmt.Fprintln(os.Stdout, titleStyle.Render("Artoo Agent")+" - Type 'quit' to exit")
@@ -143,7 +209,7 @@ func (a *Agent) Run(ctx context.Context) error {
 		var userInput string
 
 		if readyForUserInput {
-			userInput = a.getUserInput(scanner)
+			userInput = a.getUserInput()
 			if userInput == "" {
 				break
 			}
@@ -180,10 +246,6 @@ func (a *Agent) Run(ctx context.Context) error {
 		_, _ = fmt.Fprint(os.Stdout, "\n\n")
 	}
 
-	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("reading input: %w", err)
-	}
-
 	return nil
 }
 
@@ -216,35 +278,33 @@ func (a *Agent) setupTools() []anthropic.ToolUnionParam {
 	return tools
 }
 
-func (a *Agent) getUserInput(scanner *bufio.Scanner) string {
-	_, _ = fmt.Fprint(os.Stdout, userStyle.Render("You")+": ")
+func (a *Agent) getUserInput() string {
+	m := newInputModel()
+	p := tea.NewProgram(m)
 
-	if !scanner.Scan() {
+	finalModel, err := p.Run()
+	if err != nil {
 		return ""
 	}
 
-	userInput := strings.TrimSpace(scanner.Text())
-	if userInput == "" {
-		return userInput
+	if im, ok := finalModel.(inputModel); ok {
+		return strings.TrimSpace(im.value)
 	}
 
-	_, _ = fmt.Fprintln(os.Stdout, "user input: "+userInput)
-
-	return userInput
+	return ""
 }
 
 func (a *Agent) printConversation() {
-	_, _ = fmt.Fprintf(os.Stdout, "Calling claude with conversation:\n")
+	fmt.Println(debugStyle.Render("Calling claude with conversation:"))
 
 	for i := range a.conversation {
 		m, err := json.Marshal(a.conversation[i])
 		if err != nil {
-			_, _ = fmt.Fprintf(os.Stdout, "[%d] error marshalling: %v\n", i, err)
-
+			fmt.Printf(errorStyle.Render(fmt.Sprintf("[%d] error marshalling: %v\n", i, err)))
 			continue
 		}
 
-		_, _ = fmt.Fprintf(os.Stdout, "[%d] %s\n", i, string(m))
+		fmt.Println(debugStyle.Render(fmt.Sprintf("[%d] %s", i, string(m))))
 	}
 }
 

@@ -134,6 +134,7 @@ linters:
         text: "missing output for example"
       - path: agent/agent.go
         linters:
+          - exhaustive
           - gochecknoglobals
           - gochecknoinits
-        text: "(is a global variable|don't use `init` function)"
+        text: "(missing cases in switch|is a global variable|don't use `init` function)"
