@@ -3,17 +3,15 @@ package agent
 
 import (
 	"context"
-	"crypto/rand"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"math/big"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/aelse/artoo/tools"
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -26,23 +24,12 @@ type Agent struct {
 	conversation []anthropic.MessageParam
 }
 
-type RandomNumberParams struct {
-	Min int `json:"min"`
-	Max int `json:"max"`
-}
-
-type RandomNumberResponse struct {
-	Number int `json:"number"`
-}
-
 const (
 	maxTokens           = 1024
 	spinnerTickInterval = 100 * time.Millisecond
 )
 
 var (
-	errMinGreaterThanMax = errors.New("min value cannot be greater than max value")
-
 	titleStyle  lipgloss.Style
 	userStyle   lipgloss.Style
 	claudeStyle lipgloss.Style
@@ -182,22 +169,6 @@ func New(client anthropic.Client) *Agent {
 	}
 }
 
-func (a *Agent) generateRandomNumber(params RandomNumberParams) (*RandomNumberResponse, error) {
-	if params.Min > params.Max {
-		return nil, errMinGreaterThanMax
-	}
-
-	// Use crypto/rand for secure random number generation.
-	rangeSize := params.Max - params.Min + 1
-	n, err := rand.Int(rand.Reader, big.NewInt(int64(rangeSize)))
-
-	if err != nil {
-		return nil, fmt.Errorf("generating random number: %w", err)
-	}
-
-	return &RandomNumberResponse{Number: int(n.Int64()) + params.Min}, nil
-}
-
 func (a *Agent) Run(ctx context.Context) error {
 	tools := a.setupTools()
 
@@ -250,32 +221,17 @@ func (a *Agent) Run(ctx context.Context) error {
 }
 
 func (a *Agent) setupTools() []anthropic.ToolUnionParam {
+	randomNumberTool := tools.RandomNumberToolDefinition()
 	toolParams := []anthropic.ToolParam{
-		{
-			Name:        "generate_random_number",
-			Description: anthropic.String("Generate a random number between min and max values (inclusive)"),
-			InputSchema: anthropic.ToolInputSchemaParam{
-				Properties: map[string]interface{}{
-					"min": map[string]interface{}{
-						"type":        "integer",
-						"description": "Minimum value (inclusive)",
-					},
-					"max": map[string]interface{}{
-						"type":        "integer",
-						"description": "Maximum value (inclusive)",
-					},
-				},
-				Required: []string{"min", "max"},
-			},
-		},
+		randomNumberTool,
 	}
 
-	tools := make([]anthropic.ToolUnionParam, len(toolParams))
+	toolUnions := make([]anthropic.ToolUnionParam, len(toolParams))
 	for i, toolParam := range toolParams {
-		tools[i] = anthropic.ToolUnionParam{OfTool: &toolParam}
+		toolUnions[i] = anthropic.ToolUnionParam{OfTool: &toolParam}
 	}
 
-	return tools
+	return toolUnions
 }
 
 func (a *Agent) getUserInput() string {
@@ -374,7 +330,7 @@ func (a *Agent) handleToolUse(block anthropic.ToolUseBlock) *anthropic.ContentBl
 		spin.start()
 		defer spin.stop()
 
-		var params RandomNumberParams
+		var params tools.RandomNumberParams
 
 		err := json.Unmarshal([]byte(block.JSON.Input.Raw()), &params)
 		if err != nil {
@@ -383,7 +339,7 @@ func (a *Agent) handleToolUse(block anthropic.ToolUseBlock) *anthropic.ContentBl
 			return nil
 		}
 
-		randomNumResp, err := a.generateRandomNumber(params)
+		randomNumResp, err := tools.GenerateRandomNumber(params)
 		if err != nil {
 			result := anthropic.NewToolResultBlock(block.ID, fmt.Sprintf("Error: %v", err), true)
 
