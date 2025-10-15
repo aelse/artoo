@@ -132,3 +132,8 @@ linters:
         linters:
           - testableexamples
         text: "missing output for example"
+      - path: agent/agent.go
+        linters:
+          - gochecknoglobals
+          - gochecknoinits
+        text: "(is a global variable|don't use `init` function)"

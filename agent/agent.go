@@ -13,8 +13,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/aelse/artoo/ansi"
 	"github.com/anthropics/anthropic-sdk-go"
+	"github.com/charmbracelet/lipgloss"
 )
 
 type Agent struct {
@@ -31,7 +31,21 @@ type RandomNumberResponse struct {
 	Number int `json:"number"`
 }
 
-var errMinGreaterThanMax = errors.New("min value cannot be greater than max value")
+var (
+	errMinGreaterThanMax = errors.New("min value cannot be greater than max value")
+
+	titleStyle  lipgloss.Style
+	userStyle   lipgloss.Style
+	claudeStyle lipgloss.Style
+	errorStyle  lipgloss.Style
+)
+
+func init() {
+	titleStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("14")).Bold(true)  // Bright cyan
+	userStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("10"))             // Green
+	claudeStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("12"))           // Blue
+	errorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Bold(true)  // Red
+}
 
 func New(client anthropic.Client) *Agent {
 	return &Agent{
@@ -62,7 +76,7 @@ func (a *Agent) Run(ctx context.Context) error {
 	scanner := bufio.NewScanner(os.Stdin)
 	tools := a.setupTools()
 
-	_, _ = fmt.Fprintln(os.Stdout, ansi.BrightCyan+"Artoo Agent"+ansi.Reset+" - Type 'quit' to exit")
+	_, _ = fmt.Fprintln(os.Stdout, titleStyle.Render("Artoo Agent")+" - Type 'quit' to exit")
 
 	readyForUserInput := true
 
@@ -89,7 +103,7 @@ func (a *Agent) Run(ctx context.Context) error {
 
 		message, err := a.callClaude(ctx, tools)
 		if err != nil {
-			_, _ = fmt.Fprintf(os.Stdout, ansi.Red+"Error: %v"+ansi.Reset+"\n", err)
+			_, _ = fmt.Fprintf(os.Stdout, "%s\n", errorStyle.Render(fmt.Sprintf("Error: %v", err)))
 
 			continue
 		}
@@ -144,7 +158,7 @@ func (a *Agent) setupTools() []anthropic.ToolUnionParam {
 }
 
 func (a *Agent) getUserInput(scanner *bufio.Scanner) string {
-	_, _ = fmt.Fprint(os.Stdout, ansi.Green+"You"+ansi.Reset+": ")
+	_, _ = fmt.Fprint(os.Stdout, userStyle.Render("You")+": ")
 
 	if !scanner.Scan() {
 		return ""
@@ -191,7 +205,7 @@ func (a *Agent) processResponse(message *anthropic.Message) ([]anthropic.Content
 
 	hasToolUse := false
 
-	_, _ = fmt.Fprint(os.Stdout, ansi.Blue+"Claude"+ansi.Reset+": ")
+	_, _ = fmt.Fprint(os.Stdout, claudeStyle.Render("Claude")+": ")
 
 	a.printMessageContent(message)
 	a.conversation = append(a.conversation, message.ToParam())
