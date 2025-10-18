@@ -6,13 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/aelse/artoo/conversation"
-	"github.com/aelse/artoo/tools"
+	"github.com/aelse/artoo/tool"
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -21,8 +20,11 @@ import (
 )
 
 type Agent struct {
-	client       anthropic.Client
-	conversation *conversation.Conversation
+	client          anthropic.Client
+	conversation    *conversation.Conversation
+	tools           []tool.Tool
+	toolMap         map[string]tool.Tool
+	toolUnionParams []anthropic.ToolUnionParam
 }
 
 const (
@@ -164,14 +166,17 @@ func (m inputModel) View() string {
 }
 
 func New(client anthropic.Client) *Agent {
+	allTools := tool.AllTools
 	return &Agent{
-		client:       client,
-		conversation: conversation.New(),
+		client:          client,
+		conversation:    conversation.New(),
+		tools:           allTools,
+		toolMap:         makeToolMap(allTools),
+		toolUnionParams: makeToolUnionParams(allTools),
 	}
 }
 
 func (a *Agent) Run(ctx context.Context) error {
-	tools := a.setupTools()
 
 	_, _ = fmt.Fprintln(os.Stdout, titleStyle.Render("Artoo Agent")+" - Type 'quit' to exit")
 
@@ -198,7 +203,7 @@ func (a *Agent) Run(ctx context.Context) error {
 
 		a.printConversation()
 
-		message, err := a.callClaude(ctx, tools)
+		message, err := a.callClaude(ctx, a.toolUnionParams)
 		if err != nil {
 			_, _ = fmt.Fprintf(os.Stdout, "%s\n", errorStyle.Render(fmt.Sprintf("Error: %v", err)))
 
@@ -221,18 +226,22 @@ func (a *Agent) Run(ctx context.Context) error {
 	return nil
 }
 
-func (a *Agent) setupTools() []anthropic.ToolUnionParam {
-	randomNumberTool := tools.RandomNumberToolDefinition()
-	toolParams := []anthropic.ToolParam{
-		randomNumberTool,
+func makeToolUnionParams(tools []tool.Tool) []anthropic.ToolUnionParam {
+	tup := make([]anthropic.ToolUnionParam, len(tools))
+	for i := range tools {
+		toolParam := tools[i].Param()
+		tup[i] = anthropic.ToolUnionParam{OfTool: &toolParam}
 	}
+	return tup
+}
 
-	toolUnions := make([]anthropic.ToolUnionParam, len(toolParams))
-	for i, toolParam := range toolParams {
-		toolUnions[i] = anthropic.ToolUnionParam{OfTool: &toolParam}
+func makeToolMap(tools []tool.Tool) map[string]tool.Tool {
+	toolMap := make(map[string]tool.Tool)
+	for i := range tools {
+		t := tools[i]
+		toolMap[t.Param().Name] = tools[i]
 	}
-
-	return toolUnions
+	return toolMap
 }
 
 func (a *Agent) getUserInput() string {
@@ -326,44 +335,16 @@ func (a *Agent) printMessageContent(message *anthropic.Message) {
 }
 
 func (a *Agent) handleToolUse(block anthropic.ToolUseBlock) *anthropic.ContentBlockParamUnion {
-	if block.Name == "generate_random_number" {
-		spin := newSpinner("Generating random number...")
-		spin.start()
-		defer spin.stop()
+	spin := newSpinner("Calling tool...")
+	spin.start()
+	defer spin.stop()
 
-		var params tools.RandomNumberParams
-
-		err := json.Unmarshal([]byte(block.JSON.Input.Raw()), &params)
-		if err != nil {
-			_, _ = fmt.Fprintf(os.Stdout, "error unmarshalling params: %v\n", err)
-
-			return nil
-		}
-
-		randomNumResp, err := tools.GenerateRandomNumber(params)
-		if err != nil {
-			result := anthropic.NewToolResultBlock(block.ID, fmt.Sprintf("Error: %v", err), true)
-
-			return &result
-		}
-
-		_, _ = fmt.Fprintf(os.Stdout, "[Generated random number: %d]\n", randomNumResp.Number)
-
-		result := anthropic.NewToolResultBlock(block.ID, strconv.Itoa(randomNumResp.Number), false)
-
-		b, err := json.Marshal(randomNumResp)
-		if err != nil {
-			_, _ = fmt.Fprintln(os.Stdout, "error marshalling tool response: "+err.Error())
-
-			return &result
-		}
-
-		_, _ = fmt.Fprintln(os.Stdout, string(b))
-
-		return &result
+	t, exists := a.toolMap[block.Name]
+	if !exists {
+		return nil
 	}
 
-	return nil
+	return t.Call(block)
 }
 
 func Run(ctx context.Context) error {

@@ -1,11 +1,14 @@
-// Package tools provides tool implementations for the agent.
-package tools
+// Package tool provides tool implementations for the agent.
+package tool
 
 import (
 	"crypto/rand"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
+	"os"
+	"strconv"
 
 	"github.com/anthropics/anthropic-sdk-go"
 )
@@ -24,6 +27,47 @@ type RandomNumberParams struct {
 // RandomNumberResponse defines the response for a random number generation.
 type RandomNumberResponse struct {
 	Number int `json:"number"`
+}
+
+var _ Tool = (*RandomNumberTool)(nil)
+
+type RandomNumberTool struct{}
+
+func (t *RandomNumberTool) Call(block anthropic.ToolUseBlock) *anthropic.ContentBlockParamUnion {
+	var params RandomNumberParams
+
+	err := json.Unmarshal([]byte(block.JSON.Input.Raw()), &params)
+	if err != nil {
+		_, _ = fmt.Fprintf(os.Stdout, "error unmarshalling params: %v\n", err)
+
+		return nil
+	}
+
+	randomNumResp, err := GenerateRandomNumber(params)
+	if err != nil {
+		result := anthropic.NewToolResultBlock(block.ID, fmt.Sprintf("Error: %v", err), true)
+
+		return &result
+	}
+
+	_, _ = fmt.Fprintf(os.Stdout, "[Generated random number: %d]\n", randomNumResp.Number)
+
+	result := anthropic.NewToolResultBlock(block.ID, strconv.Itoa(randomNumResp.Number), false)
+
+	b, err := json.Marshal(randomNumResp)
+	if err != nil {
+		_, _ = fmt.Fprintln(os.Stdout, "error marshalling tool response: "+err.Error())
+
+		return &result
+	}
+
+	_, _ = fmt.Fprintln(os.Stdout, string(b))
+
+	return &result
+}
+
+func (t *RandomNumberTool) Param() anthropic.ToolParam {
+	return RandomNumberToolDefinition()
 }
 
 // GenerateRandomNumber generates a random number between min and max values (inclusive).
