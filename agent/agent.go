@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/aelse/artoo/conversation"
 	"github.com/aelse/artoo/tools"
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/charmbracelet/bubbles/spinner"
@@ -21,7 +22,7 @@ import (
 
 type Agent struct {
 	client       anthropic.Client
-	conversation []anthropic.MessageParam
+	conversation *conversation.Conversation
 }
 
 const (
@@ -165,7 +166,7 @@ func (m inputModel) View() string {
 func New(client anthropic.Client) *Agent {
 	return &Agent{
 		client:       client,
-		conversation: make([]anthropic.MessageParam, 0),
+		conversation: conversation.New(),
 	}
 }
 
@@ -189,7 +190,7 @@ func (a *Agent) Run(ctx context.Context) error {
 				break
 			}
 
-			a.conversation = append(a.conversation, anthropic.NewUserMessage(
+			a.conversation.Append(anthropic.NewUserMessage(
 				anthropic.NewTextBlock(userInput),
 			))
 			readyForUserInput = false
@@ -207,7 +208,7 @@ func (a *Agent) Run(ctx context.Context) error {
 		toolResults, hasToolUse := a.processResponse(message)
 
 		if len(toolResults) > 0 {
-			a.conversation = append(a.conversation, anthropic.NewUserMessage(toolResults...))
+			a.conversation.Append(anthropic.NewUserMessage(toolResults...))
 		}
 
 		if !hasToolUse {
@@ -253,8 +254,8 @@ func (a *Agent) getUserInput() string {
 func (a *Agent) printConversation() {
 	fmt.Println(debugStyle.Render("Calling claude with conversation:"))
 
-	for i := range a.conversation {
-		m, err := json.Marshal(a.conversation[i])
+	for i := 0; i < a.conversation.Len(); i++ {
+		m, err := json.Marshal(a.conversation.Get(i))
 		if err != nil {
 			fmt.Printf(errorStyle.Render(fmt.Sprintf("[%d] error marshalling: %v\n", i, err)))
 			continue
@@ -272,7 +273,7 @@ func (a *Agent) callClaude(ctx context.Context, tools []anthropic.ToolUnionParam
 	message, err := a.client.Messages.New(ctx, anthropic.MessageNewParams{
 		Model:     anthropic.ModelClaude4Sonnet20250514,
 		MaxTokens: maxTokens,
-		Messages:  a.conversation,
+		Messages:  a.conversation.Messages(),
 		Tools:     tools,
 	})
 
@@ -287,7 +288,7 @@ func (a *Agent) processResponse(message *anthropic.Message) ([]anthropic.Content
 	_, _ = fmt.Fprint(os.Stdout, claudeStyle.Render("Claude")+": ")
 
 	a.printMessageContent(message)
-	a.conversation = append(a.conversation, message.ToParam())
+	a.conversation.Append(message.ToParam())
 
 	for _, block := range message.Content {
 		variant, ok := block.AsAny().(anthropic.ToolUseBlock)
