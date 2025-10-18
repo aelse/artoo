@@ -43,7 +43,7 @@ func (t *RandomNumberTool) Call(block anthropic.ToolUseBlock) *anthropic.Content
 		return nil
 	}
 
-	randomNumResp, err := GenerateRandomNumber(params)
+	randomNumResp, err := t.generateRandomNumber(params)
 	if err != nil {
 		result := anthropic.NewToolResultBlock(block.ID, fmt.Sprintf("Error: %v", err), true)
 
@@ -67,28 +67,6 @@ func (t *RandomNumberTool) Call(block anthropic.ToolUseBlock) *anthropic.Content
 }
 
 func (t *RandomNumberTool) Param() anthropic.ToolParam {
-	return RandomNumberToolDefinition()
-}
-
-// GenerateRandomNumber generates a random number between min and max values (inclusive).
-func GenerateRandomNumber(params RandomNumberParams) (*RandomNumberResponse, error) {
-	if params.Min > params.Max {
-		return nil, ErrMinGreaterThanMax
-	}
-
-	// Use crypto/rand for secure random number generation.
-	rangeSize := params.Max - params.Min + 1
-	n, err := rand.Int(rand.Reader, big.NewInt(int64(rangeSize)))
-
-	if err != nil {
-		return nil, fmt.Errorf("generating random number: %w", err)
-	}
-
-	return &RandomNumberResponse{Number: int(n.Int64()) + params.Min}, nil
-}
-
-// Definition returns the tool definition for the random number generator.
-func RandomNumberToolDefinition() anthropic.ToolParam {
 	return anthropic.ToolParam{
 		Name:        "generate_random_number",
 		Description: anthropic.String("Generate a random number between min and max values (inclusive)"),
@@ -106,4 +84,22 @@ func RandomNumberToolDefinition() anthropic.ToolParam {
 			Required: []string{"min", "max"},
 		},
 	}
+
+}
+
+// generateRandomNumber generates a random number between min and max values (inclusive).
+func (t *RandomNumberTool) generateRandomNumber(params RandomNumberParams) (*RandomNumberResponse, error) {
+	if params.Min > params.Max {
+		return nil, ErrMinGreaterThanMax
+	}
+
+	// Use crypto/rand for secure random number generation.
+	rangeSize := params.Max - params.Min + 1
+	n, err := rand.Int(rand.Reader, big.NewInt(int64(rangeSize)))
+
+	if err != nil {
+		return nil, fmt.Errorf("generating random number: %w", err)
+	}
+
+	return &RandomNumberResponse{Number: int(n.Int64()) + params.Min}, nil
 }
