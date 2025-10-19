@@ -63,5 +63,5 @@ func (w *toolWrapper[P]) Param() anthropic.ToolParam {
 }
 
 var AllTools = []Tool{
-	WrapTypedTool[RandomNumberParams](&RandomNumberTool{}),
+	WrapTypedTool(&RandomNumberTool{}),
 }
