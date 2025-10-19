@@ -27,7 +27,64 @@ See [tool/ls.go](tool/ls.go) and [tool/ls_test.go](tool/ls_test.go) for a comple
 - Has comprehensive unit tests (100% coverage)
 - Demonstrates proper error handling
 
-Both tools show the power of the generic refactor - complex functionality with clean, type-safe code!
+### Read Tool
+See [tool/read.go](tool/read.go) and [tool/read_test.go](tool/read_test.go) for a file reading tool that:
+- Implements offset/limit pagination for large files
+- Detects and rejects binary files
+- Identifies image files
+- Provides helpful suggestions for file-not-found errors
+- Formats output with line numbers (cat -n style)
+- Comprehensive test suite covering edge cases
+
+### Edit Tool
+See [tool/edit.go](tool/edit.go) and [tool/edit_test.go](tool/edit_test.go) for an advanced file editing tool that:
+- Performs exact string replacements with fuzzy matching fallbacks
+- Implements 6 different matching strategies for robustness:
+  - Simple exact match
+  - Line-trimmed matching (ignores leading/trailing whitespace per line)
+  - Block anchor matching (fuzzy matches blocks using first/last lines as anchors with Levenshtein distance)
+  - Whitespace-normalized matching
+  - Indentation-flexible matching
+  - Trimmed boundary matching
+- Handles single occurrence (unique match) vs multiple occurrences (error or replaceAll)
+- Comprehensive Levenshtein distance algorithm for fuzzy matching
+- 550+ lines with sophisticated pattern matching - all using the generic wrapper!
+
+### Write Tool
+See [tool/write.go](tool/write.go) - A simple file writing tool that:
+- Creates new files or overwrites existing ones
+- Requires absolute paths
+- Minimal implementation showing the simplicity of basic tools
+
+### Glob Tool
+See [tool/glob.go](tool/glob.go) - A file pattern matching tool that:
+- Uses ripgrep for fast file discovery
+- Supports glob patterns like `**/*.go`
+- Sorts results by modification time
+- Limits to 100 results with truncation notice
+
+### Bash Tool
+See [tool/bash.go](tool/bash.go) - Command execution tool that:
+- Executes bash commands with configurable timeouts
+- Captures stdout and stderr
+- Handles long-running processes
+- Truncates output at 30KB limit
+
+### WebFetch Tool
+See [tool/webfetch.go](tool/webfetch.go) - HTTP client tool that:
+- Fetches content from URLs
+- Supports multiple output formats (text, markdown, html)
+- Configurable timeouts
+- 5MB response size limit
+
+### MultiEdit Tool
+See [tool/multiedit.go](tool/multiedit.go) - Batch editing tool that:
+- Applies multiple edits to a single file sequentially
+- Uses the Edit tool internally
+- Atomic operations (all or nothing)
+- Useful for complex refactoring tasks
+
+All implemented tools demonstrate the power of the generic refactor - from simple 75-line tools to complex 550-line implementations, all with **zero JSON boilerplate**!
 
 ## Example: Calculator Tool
 
