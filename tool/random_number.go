@@ -3,11 +3,9 @@ package tool
 
 import (
 	"crypto/rand"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
-	"os"
 	"strconv"
 
 	"github.com/anthropics/anthropic-sdk-go"
@@ -24,46 +22,27 @@ type RandomNumberParams struct {
 	Max int `json:"max"`
 }
 
-// RandomNumberResponse defines the response for a random number generation.
-type RandomNumberResponse struct {
-	Number int `json:"number"`
-}
-
-var _ Tool = (*RandomNumberTool)(nil)
+// Ensure RandomNumberTool implements TypedTool[RandomNumberParams]
+var _ TypedTool[RandomNumberParams] = (*RandomNumberTool)(nil)
 
 type RandomNumberTool struct{}
 
-func (t *RandomNumberTool) Call(block anthropic.ToolUseBlock) *anthropic.ContentBlockParamUnion {
-	var params RandomNumberParams
-
-	err := json.Unmarshal([]byte(block.JSON.Input.Raw()), &params)
-	if err != nil {
-		_, _ = fmt.Fprintf(os.Stdout, "error unmarshalling params: %v\n", err)
-
-		return nil
+// Call implements TypedTool.Call with strongly-typed parameters
+func (t *RandomNumberTool) Call(params RandomNumberParams) (string, error) {
+	// Validate parameters
+	if params.Min > params.Max {
+		return "", ErrMinGreaterThanMax
 	}
 
-	randomNumResp, err := t.generateRandomNumber(params)
+	// Generate random number
+	rangeSize := params.Max - params.Min + 1
+	n, err := rand.Int(rand.Reader, big.NewInt(int64(rangeSize)))
 	if err != nil {
-		result := anthropic.NewToolResultBlock(block.ID, fmt.Sprintf("Error: %v", err), true)
-
-		return &result
+		return "", fmt.Errorf("generating random number: %w", err)
 	}
 
-	_, _ = fmt.Fprintf(os.Stdout, "[Generated random number: %d]\n", randomNumResp.Number)
-
-	result := anthropic.NewToolResultBlock(block.ID, strconv.Itoa(randomNumResp.Number), false)
-
-	b, err := json.Marshal(randomNumResp)
-	if err != nil {
-		_, _ = fmt.Fprintln(os.Stdout, "error marshalling tool response: "+err.Error())
-
-		return &result
-	}
-
-	_, _ = fmt.Fprintln(os.Stdout, string(b))
-
-	return &result
+	result := int(n.Int64()) + params.Min
+	return strconv.Itoa(result), nil
 }
 
 func (t *RandomNumberTool) Param() anthropic.ToolParam {
@@ -84,22 +63,4 @@ func (t *RandomNumberTool) Param() anthropic.ToolParam {
 			Required: []string{"min", "max"},
 		},
 	}
-
-}
-
-// generateRandomNumber generates a random number between min and max values (inclusive).
-func (t *RandomNumberTool) generateRandomNumber(params RandomNumberParams) (*RandomNumberResponse, error) {
-	if params.Min > params.Max {
-		return nil, ErrMinGreaterThanMax
-	}
-
-	// Use crypto/rand for secure random number generation.
-	rangeSize := params.Max - params.Min + 1
-	n, err := rand.Int(rand.Reader, big.NewInt(int64(rangeSize)))
-
-	if err != nil {
-		return nil, fmt.Errorf("generating random number: %w", err)
-	}
-
-	return &RandomNumberResponse{Number: int(n.Int64()) + params.Min}, nil
 }
