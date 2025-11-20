@@ -6,9 +6,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/aelse/artoo/agent"
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
+
+	"github.com/aelse/artoo/agent"
 )
 
 func main() {

@@ -10,13 +10,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aelse/artoo/conversation"
-	"github.com/aelse/artoo/tool"
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
+	"github.com/aelse/artoo/conversation"
+	"github.com/aelse/artoo/tool"
 )
 
 type Agent struct {
