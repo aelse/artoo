@@ -266,7 +266,7 @@ func (a *Agent) printConversation() {
 	for i := 0; i < a.conversation.Len(); i++ {
 		m, err := json.Marshal(a.conversation.Get(i))
 		if err != nil {
-			fmt.Printf(errorStyle.Render(fmt.Sprintf("[%d] error marshalling: %v\n", i, err)))
+			fmt.Printf("%s", errorStyle.Render(fmt.Sprintf("[%d] error marshalling: %v\n", i, err)))
 			continue
 		}
 
