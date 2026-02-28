@@ -49,6 +49,9 @@ func (a *Agent) SendMessage(ctx context.Context, text string, cb Callbacks) (*Re
 
 	// Tool-use loop: call API, execute any tools, repeat until no more tools
 	for {
+		// Trim conversation if approaching context window limit before making API call
+		a.conversation.Trim()
+
 		cb.OnThinking()
 		message, err := a.client.Messages.New(ctx, anthropic.MessageNewParams{
 			Model:     anthropic.Model(a.config.Model),
@@ -60,6 +63,11 @@ func (a *Agent) SendMessage(ctx context.Context, text string, cb Callbacks) (*Re
 
 		if err != nil {
 			return nil, err
+		}
+
+		// Update token count from API response
+		if message.Usage.InputTokens > 0 {
+			a.conversation.UpdateTokenCount(int(message.Usage.InputTokens))
 		}
 
 		// Append the assistant's response to conversation
@@ -93,6 +101,7 @@ func (a *Agent) SendMessage(ctx context.Context, text string, cb Callbacks) (*Re
 
 		// If there were tool calls, add results to conversation and loop again
 		if len(toolResults) > 0 {
+			// Append tool results, with truncation applied if needed
 			a.conversation.Append(anthropic.NewUserMessage(toolResults...))
 		}
 
