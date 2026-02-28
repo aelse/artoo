@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os/exec"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/anthropics/anthropic-sdk-go"
@@ -194,7 +194,7 @@ func (t *LsTool) renderTree(basePath string, files []string, truncated bool) str
 				children = append(children, d)
 			}
 		}
-		sort.Strings(children)
+		slices.Sort(children)
 
 		// Render subdirectories first
 		for _, child := range children {
@@ -203,7 +203,7 @@ func (t *LsTool) renderTree(basePath string, files []string, truncated bool) str
 
 		// Render files in this directory
 		if files := filesByDir[dirPath]; len(files) > 0 {
-			sort.Strings(files)
+			slices.Sort(files)
 			for _, file := range files {
 				result.WriteString(fmt.Sprintf("%s%s\n", childIndent, file))
 			}
@@ -226,15 +226,15 @@ func (t *LsTool) Param() anthropic.ToolParam {
 		Name:        "list",
 		Description: anthropic.String("Lists files and directories in a given path. The path parameter must be absolute; omit it to use the current workspace directory. You can optionally provide an array of glob patterns to ignore with the ignore parameter. You should generally prefer the Glob and Grep tools, if you know which directories to search."),
 		InputSchema: anthropic.ToolInputSchemaParam{
-			Properties: map[string]interface{}{
-				"path": map[string]interface{}{
+			Properties: map[string]any{
+				"path": map[string]any{
 					"type":        "string",
 					"description": "The absolute path to the directory to list (must be absolute, not relative)",
 				},
-				"ignore": map[string]interface{}{
+				"ignore": map[string]any{
 					"type":        "array",
 					"description": "List of glob patterns to ignore",
-					"items": map[string]interface{}{
+					"items": map[string]any{
 						"type": "string",
 					},
 				},

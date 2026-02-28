@@ -73,13 +73,8 @@ func newSpinner(message string) *spinnerRunner {
 
 // start begins the spinner animation.
 func (s *spinnerRunner) start() {
-	s.done.Add(1)
-
-	go func() {
-		defer s.done.Done()
-
-		ticker := time.NewTicker(spinnerTickInterval)
-		defer ticker.Stop()
+	s.done.Go(func() {
+		ticker := time.Tick(spinnerTickInterval)
 
 		for {
 			select {
@@ -88,13 +83,13 @@ func (s *spinnerRunner) start() {
 				_, _ = fmt.Fprint(os.Stdout, "\r\033[K")
 
 				return
-			case <-ticker.C:
+			case <-ticker:
 				s.model, _ = s.model.Update(s.model.Tick())
 				frame := s.model.View()
 				_, _ = fmt.Fprintf(os.Stdout, "\r%s %s", frame, s.message)
 			}
 		}
-	}()
+	})
 }
 
 // stop ends the spinner animation and clears the line.
@@ -263,7 +258,7 @@ func (a *Agent) getUserInput() string {
 func (a *Agent) printConversation() {
 	fmt.Println(debugStyle.Render("Calling claude with conversation:"))
 
-	for i := 0; i < a.conversation.Len(); i++ {
+	for i := range a.conversation.Len() {
 		m, err := json.Marshal(a.conversation.Get(i))
 		if err != nil {
 			fmt.Printf("%s", errorStyle.Render(fmt.Sprintf("[%d] error marshalling: %v\n", i, err)))

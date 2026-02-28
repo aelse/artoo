@@ -50,12 +50,12 @@ func (t *RandomNumberTool) Param() anthropic.ToolParam {
 		Name:        "generate_random_number",
 		Description: anthropic.String("Generate a random number between min and max values (inclusive)"),
 		InputSchema: anthropic.ToolInputSchemaParam{
-			Properties: map[string]interface{}{
-				"min": map[string]interface{}{
+			Properties: map[string]any{
+				"min": map[string]any{
 					"type":        "integer",
 					"description": "Minimum value (inclusive)",
 				},
-				"max": map[string]interface{}{
+				"max": map[string]any{
 					"type":        "integer",
 					"description": "Maximum value (inclusive)",
 				},

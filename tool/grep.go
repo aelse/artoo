@@ -4,10 +4,11 @@ package tool
 import (
 	"bufio"
 	"bytes"
+	"cmp"
 	"fmt"
 	"os"
 	"os/exec"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -95,8 +96,8 @@ func (t *GrepTool) Call(params GrepParams) (string, error) {
 	}
 
 	// Sort matches by modification time (most recent first)
-	sort.Slice(matches, func(i, j int) bool {
-		return matches[i].modTime > matches[j].modTime
+	slices.SortFunc(matches, func(a, b grepMatch) int {
+		return cmp.Compare(b.modTime, a.modTime)
 	})
 
 	// Limit and truncate results
@@ -194,16 +195,16 @@ func (t *GrepTool) Param() anthropic.ToolParam {
 - If you need to identify/count the number of matches within files, use the Bash tool with 'rg' (ripgrep) directly. Do NOT use 'grep'.
 - When you are doing an open ended search that may require multiple rounds of globbing and grepping, use the Task tool instead`),
 		InputSchema: anthropic.ToolInputSchemaParam{
-			Properties: map[string]interface{}{
-				"pattern": map[string]interface{}{
+			Properties: map[string]any{
+				"pattern": map[string]any{
 					"type":        "string",
 					"description": "The regex pattern to search for in file contents",
 				},
-				"path": map[string]interface{}{
+				"path": map[string]any{
 					"type":        "string",
 					"description": "The directory to search in. Defaults to the current working directory.",
 				},
-				"include": map[string]interface{}{
+				"include": map[string]any{
 					"type":        "string",
 					"description": "File pattern to include in the search (e.g. \"*.js\", \"*.{ts,tsx}\")",
 				},

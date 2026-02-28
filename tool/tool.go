@@ -40,21 +40,18 @@ func (w *toolWrapper[P]) Call(block anthropic.ToolUseBlock) *anthropic.ContentBl
 	err := json.Unmarshal([]byte(block.JSON.Input.Raw()), &params)
 	if err != nil {
 		errMsg := fmt.Sprintf("Error unmarshalling parameters: %v", err)
-		result := anthropic.NewToolResultBlock(block.ID, errMsg, true)
-		return &result
+		return new(anthropic.NewToolResultBlock(block.ID, errMsg, true))
 	}
 
 	// Call the typed tool with unmarshalled params
 	output, err := w.typed.Call(params)
 	if err != nil {
 		errMsg := fmt.Sprintf("Error: %v", err)
-		result := anthropic.NewToolResultBlock(block.ID, errMsg, true)
-		return &result
+		return new(anthropic.NewToolResultBlock(block.ID, errMsg, true))
 	}
 
 	// Return successful result
-	result := anthropic.NewToolResultBlock(block.ID, output, false)
-	return &result
+	return new(anthropic.NewToolResultBlock(block.ID, output, false))
 }
 
 // Param implements Tool.Param

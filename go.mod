@@ -1,6 +1,6 @@
 module github.com/aelse/artoo
 
-go 1.24.2
+go 1.26
 
 require (
 	github.com/anthropics/anthropic-sdk-go v1.13.0
