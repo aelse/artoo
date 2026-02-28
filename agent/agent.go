@@ -33,6 +33,12 @@ func New(client anthropic.Client, config Config) *Agent {
 	}
 }
 
+// SetConversationConfig updates the conversation's configuration.
+// This allows the agent to use custom context management settings.
+func (a *Agent) SetConversationConfig(cfg conversation.Config) {
+	a.conversation = conversation.NewWithConfig(cfg)
+}
+
 // SendMessage sends a user message and handles the agentic loop (API calls + tool use).
 // It calls callbacks so the UI layer can observe what happens without the agent
 // knowing about terminals.

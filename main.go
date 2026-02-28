@@ -15,6 +15,9 @@ import (
 func main() {
 	ctx := context.Background()
 
+	// Load configuration from environment variables
+	cfg := LoadConfig()
+
 	// Create API client
 	client := anthropic.NewClient(
 		option.WithAPIKey(os.Getenv("ANTHROPIC_API_KEY")),
@@ -24,8 +27,17 @@ func main() {
 	term := ui.NewTerminal()
 	term.PrintTitle()
 
-	// Create agent with default config
-	a := agent.New(client, agent.DefaultConfig())
+	// Create agent with loaded config
+	a := agent.New(client, cfg.Agent)
+
+	// Update conversation with config (for context management)
+	a.SetConversationConfig(cfg.Conversation)
+
+	// Debug logging if enabled
+	if cfg.Debug {
+		fmt.Fprintf(os.Stderr, "Debug: Model=%s MaxTokens=%d MaxContext=%d\n",
+			cfg.Agent.Model, cfg.Agent.MaxTokens, cfg.Conversation.MaxContextTokens)
+	}
 
 	// REPL loop: read input, send message, repeat
 	for {
