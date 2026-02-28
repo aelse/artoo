@@ -7,18 +7,46 @@ import (
 	"os"
 
 	"github.com/aelse/artoo/agent"
+	"github.com/aelse/artoo/ui"
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
 )
 
 func main() {
 	ctx := context.Background()
+
+	// Create API client
 	client := anthropic.NewClient(
 		option.WithAPIKey(os.Getenv("ANTHROPIC_API_KEY")),
 	)
-	a := agent.New(client)
 
-	if err := a.Run(ctx); err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "Terminated with error: %s\n", err.Error())
+	// Create terminal UI
+	term := ui.NewTerminal()
+	term.PrintTitle()
+
+	// Create agent with default config
+	a := agent.New(client, agent.DefaultConfig())
+
+	// REPL loop: read input, send message, repeat
+	for {
+		input, err := term.ReadInput()
+		if err != nil {
+			term.PrintError(err)
+			break
+		}
+
+		// Empty input or quit commands end the loop
+		if input == "" || input == "quit" || input == "exit" {
+			break
+		}
+
+		// Send message to agent
+		_, err = a.SendMessage(ctx, input, term)
+		if err != nil {
+			term.PrintError(err)
+		}
+
+		// Print spacing between iterations
+		fmt.Println()
 	}
 }
