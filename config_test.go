@@ -12,6 +12,7 @@ func TestLoadConfig_Defaults(t *testing.T) {
 		"ARTOO_MAX_TOKENS",
 		"ARTOO_MAX_CONTEXT_TOKENS",
 		"ARTOO_TOOL_RESULT_MAX_CHARS",
+		"ARTOO_MAX_CONCURRENT_TOOLS",
 		"ARTOO_DEBUG",
 	)
 
@@ -33,6 +34,10 @@ func TestLoadConfig_Defaults(t *testing.T) {
 		t.Errorf("default tool result max chars should be 10000, got %d", cfg.Conversation.ToolResultMaxChars)
 	}
 
+	if cfg.Agent.MaxConcurrentTools != 4 {
+		t.Errorf("default max concurrent tools should be 4, got %d", cfg.Agent.MaxConcurrentTools)
+	}
+
 	if cfg.Debug != false {
 		t.Errorf("default debug should be false, got %v", cfg.Debug)
 	}
@@ -44,6 +49,7 @@ func TestLoadConfig_FromEnv(t *testing.T) {
 		"ARTOO_MAX_TOKENS",
 		"ARTOO_MAX_CONTEXT_TOKENS",
 		"ARTOO_TOOL_RESULT_MAX_CHARS",
+		"ARTOO_MAX_CONCURRENT_TOOLS",
 		"ARTOO_DEBUG",
 	)
 
@@ -51,6 +57,7 @@ func TestLoadConfig_FromEnv(t *testing.T) {
 	os.Setenv("ARTOO_MAX_TOKENS", "16384")
 	os.Setenv("ARTOO_MAX_CONTEXT_TOKENS", "200000")
 	os.Setenv("ARTOO_TOOL_RESULT_MAX_CHARS", "20000")
+	os.Setenv("ARTOO_MAX_CONCURRENT_TOOLS", "8")
 	os.Setenv("ARTOO_DEBUG", "true")
 
 	cfg := LoadConfig()
@@ -69,6 +76,10 @@ func TestLoadConfig_FromEnv(t *testing.T) {
 
 	if cfg.Conversation.ToolResultMaxChars != 20_000 {
 		t.Errorf("tool result max chars from env should be 20000, got %d", cfg.Conversation.ToolResultMaxChars)
+	}
+
+	if cfg.Agent.MaxConcurrentTools != 8 {
+		t.Errorf("max concurrent tools from env should be 8, got %d", cfg.Agent.MaxConcurrentTools)
 	}
 
 	if cfg.Debug != true {
@@ -187,6 +198,7 @@ func TestPartialEnvConfig(t *testing.T) {
 		"ARTOO_MAX_TOKENS",
 		"ARTOO_MAX_CONTEXT_TOKENS",
 		"ARTOO_TOOL_RESULT_MAX_CHARS",
+		"ARTOO_MAX_CONCURRENT_TOOLS",
 		"ARTOO_DEBUG",
 	)
 

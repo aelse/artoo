@@ -22,8 +22,9 @@ type AppConfig struct {
 func LoadConfig() AppConfig {
 	return AppConfig{
 		Agent: agent.Config{
-			Model:     getEnv("ARTOO_MODEL", "claude-sonnet-4-20250514"),
-			MaxTokens: getEnvInt64("ARTOO_MAX_TOKENS", 8192),
+			Model:              getEnv("ARTOO_MODEL", "claude-sonnet-4-20250514"),
+			MaxTokens:          getEnvInt64("ARTOO_MAX_TOKENS", 8192),
+			MaxConcurrentTools: getEnvInt("ARTOO_MAX_CONCURRENT_TOOLS", 4),
 		},
 		Conversation: conversation.Config{
 			MaxContextTokens:   getEnvInt("ARTOO_MAX_CONTEXT_TOKENS", 180_000),

@@ -146,6 +146,7 @@ func (m inputModel) View() string {
 
 // Terminal manages CLI input/output and styling.
 type Terminal struct {
+	mu      sync.Mutex
 	spinner *spinnerRunner
 }
 
@@ -178,23 +179,33 @@ func (t *Terminal) ReadInput() (string, error) {
 
 // PrintAssistant prints assistant text with Claude styling.
 func (t *Terminal) PrintAssistant(text string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	_, _ = fmt.Fprintf(os.Stdout, "%s: %s\n", claudeStyle.Render("Claude"), text)
 }
 
 // PrintError prints an error message in error styling.
 func (t *Terminal) PrintError(err error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	_, _ = fmt.Fprintf(os.Stdout, "%s\n", errorStyle.Render(fmt.Sprintf("Error: %v", err)))
 }
 
 // ShowSpinner displays a spinner with a message and returns a function to stop it.
 func (t *Terminal) ShowSpinner(message string) func() {
+	t.mu.Lock()
 	t.spinner = newSpinner(message)
+	t.mu.Unlock()
 	t.spinner.start()
 	return func() {
+		t.mu.Lock()
 		if t.spinner != nil {
+			t.mu.Unlock()
 			t.spinner.stop()
+			t.mu.Lock()
 			t.spinner = nil
 		}
+		t.mu.Unlock()
 	}
 }
 
@@ -202,29 +213,42 @@ func (t *Terminal) ShowSpinner(message string) func() {
 
 // OnThinking is called when the agent starts thinking.
 func (t *Terminal) OnThinking() {
-	t.ShowSpinner("Thinking...")
+	t.mu.Lock()
+	spinner := newSpinner("Thinking...")
+	t.spinner = spinner
+	t.mu.Unlock()
+	spinner.start()
 }
 
 // OnThinkingDone is called when the API response is received.
 func (t *Terminal) OnThinkingDone() {
-	if t.spinner != nil {
-		t.spinner.stop()
-		t.spinner = nil
+	t.mu.Lock()
+	spinner := t.spinner
+	t.spinner = nil
+	t.mu.Unlock()
+	if spinner != nil {
+		spinner.stop()
 	}
 }
 
 // OnText is called when the assistant produces text.
 func (t *Terminal) OnText(text string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	_, _ = fmt.Fprintf(os.Stdout, "%s: %s\n", claudeStyle.Render("Claude"), text)
 }
 
 // OnToolCall is called when the assistant calls a tool.
 func (t *Terminal) OnToolCall(name string, input string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	_, _ = fmt.Fprintf(os.Stdout, "%s: %s\n", claudeStyle.Render("Tool"), name+": "+input)
 }
 
 // OnToolResult is called after a tool completes.
 func (t *Terminal) OnToolResult(name string, output string, isError bool) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	status := "OK"
 	if isError {
 		status = "ERROR"

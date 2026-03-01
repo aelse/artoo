@@ -4,11 +4,20 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"slices"
+	"sync"
 
 	"github.com/aelse/artoo/conversation"
 	"github.com/aelse/artoo/tool"
 	"github.com/anthropics/anthropic-sdk-go"
 )
+
+// toolResult holds a tool execution result with its original index
+// to preserve ordering after concurrent execution.
+type toolResult struct {
+	index  int
+	result anthropic.ContentBlockParamUnion
+}
 
 // Agent manages the conversation with Claude and tool execution.
 type Agent struct {
@@ -80,10 +89,11 @@ func (a *Agent) SendMessage(ctx context.Context, text string, cb Callbacks) (*Re
 		a.conversation.Append(message.ToParam())
 		finalStopReason = string(message.StopReason)
 
+		var toolUseBlocks []anthropic.ToolUseBlock
 		var toolResults []anthropic.ContentBlockParamUnion
 		hasToolUse := false
 
-		// Process response content (text + tool use blocks)
+		// Collect text blocks and tool use blocks separately
 		for _, block := range message.Content {
 			switch b := block.AsAny().(type) {
 			case anthropic.TextBlock:
@@ -92,17 +102,17 @@ func (a *Agent) SendMessage(ctx context.Context, text string, cb Callbacks) (*Re
 
 			case anthropic.ToolUseBlock:
 				hasToolUse = true
+				toolUseBlocks = append(toolUseBlocks, b)
 
 				// Notify callback of tool call with JSON input
 				inputJSON, _ := json.Marshal(b.Input)
 				cb.OnToolCall(b.Name, string(inputJSON))
-
-				// Execute the tool
-				result := a.executeToolUse(b, cb)
-				if result != nil {
-					toolResults = append(toolResults, *result)
-				}
 			}
+		}
+
+		// Execute tool blocks concurrently if any exist
+		if len(toolUseBlocks) > 0 {
+			toolResults = a.executeToolsConcurrently(ctx, toolUseBlocks, cb)
 		}
 
 		// If there were tool calls, add results to conversation and loop again
@@ -121,6 +131,65 @@ func (a *Agent) SendMessage(ctx context.Context, text string, cb Callbacks) (*Re
 		Text:       finalText,
 		StopReason: finalStopReason,
 	}, nil
+}
+
+// executeToolsConcurrently executes tool blocks concurrently,
+// returning results in the original order.
+func (a *Agent) executeToolsConcurrently(ctx context.Context, blocks []anthropic.ToolUseBlock, cb Callbacks) []anthropic.ContentBlockParamUnion {
+	// Determine concurrency limit
+	maxConcurrent := a.config.MaxConcurrentTools
+	if maxConcurrent <= 0 {
+		maxConcurrent = 1
+	}
+
+	// Channel to limit concurrent goroutines
+	semaphore := make(chan struct{}, maxConcurrent)
+	resultsChan := make(chan toolResult, len(blocks))
+	var wg sync.WaitGroup
+
+	// Launch goroutines for each tool block
+	for i, block := range blocks {
+		wg.Go(func() {
+			// Acquire semaphore slot
+			semaphore <- struct{}{}
+			defer func() { <-semaphore }()
+
+			result := a.executeToolUse(block, cb)
+			if result != nil {
+				resultsChan <- toolResult{
+					index:  i,
+					result: *result,
+				}
+			}
+		})
+	}
+
+	// Wait for all goroutines to complete
+	go func() {
+		wg.Wait()
+		close(resultsChan)
+	}()
+
+	// Collect results
+	resultMap := make(map[int]anthropic.ContentBlockParamUnion)
+	for tr := range resultsChan {
+		resultMap[tr.index] = tr.result
+	}
+
+	// Sort results by original index
+	indices := make([]int, 0, len(resultMap))
+	for idx := range resultMap {
+		indices = append(indices, idx)
+	}
+	slices.Sort(indices)
+
+	// Build ordered result slice
+	results := make([]anthropic.ContentBlockParamUnion, 0, len(resultMap))
+	for _, idx := range indices {
+		results = append(results, resultMap[idx])
+	}
+
+	return results
 }
 
 func makeToolUnionParams(tools []tool.Tool) []anthropic.ToolUnionParam {
@@ -143,13 +212,15 @@ func makeToolMap(tools []tool.Tool) map[string]tool.Tool {
 
 // executeToolUse calls a tool and notifies the callback of the result.
 func (a *Agent) executeToolUse(block anthropic.ToolUseBlock, cb Callbacks) *anthropic.ContentBlockParamUnion {
+	var result *anthropic.ContentBlockParamUnion
+
 	t, exists := a.toolMap[block.Name]
 	if !exists {
 		// Tool not found — return error result
-		return new(anthropic.NewToolResultBlock(block.ID, "Tool not found", true))
+		result = new(anthropic.NewToolResultBlock(block.ID, "Tool not found", true))
+	} else {
+		result = t.Call(block)
 	}
-
-	result := t.Call(block)
 
 	// Extract output and error status from the result for callback
 	if result != nil && result.OfToolResult != nil {
@@ -165,4 +236,3 @@ func (a *Agent) executeToolUse(block anthropic.ToolUseBlock, cb Callbacks) *anth
 
 	return result
 }
-
