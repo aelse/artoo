@@ -120,14 +120,12 @@ func TestLsTool_Call(t *testing.T) {
 				}
 
 				return
-
 			}
 
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 
 				return
-
 			}
 
 			// Check that expected strings are in the output

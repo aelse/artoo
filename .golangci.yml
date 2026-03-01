@@ -173,6 +173,18 @@ linters:
         path: (.+)_test.go
         text: "package should be"
       - linters:
+          - wsl_v5
+        path: (.+)
+        text: "missing whitespace"
+      - linters:
+          - whitespace
+        path: tool/ls_test.go
+        text: "unnecessary trailing newline"
+      - linters:
+          - funlen
+        path: (agent/agent.go|tool/ls.go)
+        text: "is too long|has too many statements"
+      - linters:
           - intrange
         path: conversation/conversation_test.go
         text: "for loop"

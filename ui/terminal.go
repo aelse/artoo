@@ -124,19 +124,23 @@ func (m inputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyEnter:
 			m.value = m.textInput.Value()
 			m.submitted = true
+
 			return m, tea.Quit
 		case tea.KeyCtrlC, tea.KeyEsc:
 			m.value = ""
 			m.submitted = true
+
 			return m, tea.Quit
 		default:
 			// Let textinput handle other keys.
 			m.textInput, cmd = m.textInput.Update(msg)
+
 			return m, cmd
 		}
 	}
 
 	m.textInput, cmd = m.textInput.Update(msg)
+
 	return m, cmd
 }
 
@@ -198,6 +202,7 @@ func (t *Terminal) ShowSpinner(message string) func() {
 	t.spinner = newSpinner(message)
 	t.mu.Unlock()
 	t.spinner.start()
+
 	return func() {
 		t.mu.Lock()
 		if t.spinner != nil {
