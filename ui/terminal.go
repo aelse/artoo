@@ -15,10 +15,10 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// Ensure Terminal implements agent.Callbacks
+// Ensure Terminal implements agent.Callbacks.
 var _ agent.Callbacks = (*Terminal)(nil)
 
-// Style definitions
+// Style definitions.
 var (
 	titleStyle  lipgloss.Style
 	userStyle   lipgloss.Style
@@ -70,6 +70,7 @@ func (s *spinnerRunner) start() {
 			case <-s.quit:
 				// Clear the spinner line.
 				_, _ = fmt.Fprint(os.Stdout, "\r\033[K")
+
 				return
 			case <-ticker:
 				s.model, _ = s.model.Update(s.model.Tick())
@@ -246,7 +247,7 @@ func (t *Terminal) OnToolCall(name string, input string) {
 }
 
 // OnToolResult is called after a tool completes.
-func (t *Terminal) OnToolResult(name string, output string, isError bool) {
+func (t *Terminal) OnToolResult(name string, _ string, isError bool) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	status := "OK"

@@ -8,6 +8,8 @@ import (
 )
 
 func TestLsTool_Call(t *testing.T) {
+	t.Parallel()
+
 	// Create a temporary directory structure for testing
 	tmpDir := t.TempDir()
 
@@ -108,18 +110,24 @@ func TestLsTool_Call(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			output, err := tool.Call(tt.params)
 
 			if tt.expectError {
 				if err == nil {
 					t.Errorf("expected error but got none")
 				}
+
 				return
+
 			}
 
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
+
 				return
+
 			}
 
 			// Check that expected strings are in the output
@@ -140,6 +148,8 @@ func TestLsTool_Call(t *testing.T) {
 }
 
 func TestLsTool_RenderTree(t *testing.T) {
+	t.Parallel()
+
 	tool := &LsTool{}
 
 	tests := []struct {
@@ -202,6 +212,8 @@ func TestLsTool_RenderTree(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			output := tool.renderTree(tt.basePath, tt.files, tt.truncate)
 
 			for _, expected := range tt.expected {
@@ -214,6 +226,8 @@ func TestLsTool_RenderTree(t *testing.T) {
 }
 
 func TestLsTool_RenderTreeStructure(t *testing.T) {
+	t.Parallel()
+
 	tool := &LsTool{}
 
 	files := []string{
@@ -275,6 +289,8 @@ func TestLsTool_RenderTreeStructure(t *testing.T) {
 }
 
 func TestLsTool_Param(t *testing.T) {
+	t.Parallel()
+
 	tool := &LsTool{}
 	param := tool.Param()
 

@@ -1,12 +1,15 @@
 package conversation
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/anthropics/anthropic-sdk-go"
 )
 
 func TestNew(t *testing.T) {
+	t.Parallel()
+
 	c := New()
 	if c.MessageCount() != 0 {
 		t.Errorf("new conversation should have 0 messages, got %d", c.MessageCount())
@@ -17,6 +20,8 @@ func TestNew(t *testing.T) {
 }
 
 func TestAppend(t *testing.T) {
+	t.Parallel()
+
 	c := New()
 	msg := anthropic.NewUserMessage(anthropic.NewTextBlock("hello"))
 	c.Append(msg)
@@ -30,6 +35,8 @@ func TestAppend(t *testing.T) {
 }
 
 func TestUpdateTokenCount(t *testing.T) {
+	t.Parallel()
+
 	c := New()
 	c.UpdateTokenCount(1000)
 
@@ -44,6 +51,8 @@ func TestUpdateTokenCount(t *testing.T) {
 }
 
 func TestTrim_BelowThreshold(t *testing.T) {
+	t.Parallel()
+
 	cfg := Config{
 		MaxContextTokens:   100,
 		ToolResultMaxChars: 1000,
@@ -69,6 +78,8 @@ func TestTrim_BelowThreshold(t *testing.T) {
 }
 
 func TestTrim_AboveThreshold(t *testing.T) {
+	t.Parallel()
+
 	cfg := Config{
 		MaxContextTokens:   100,
 		ToolResultMaxChars: 1000,
@@ -99,6 +110,8 @@ func TestTrim_AboveThreshold(t *testing.T) {
 }
 
 func TestTruncateToolResult_LargeOutput(t *testing.T) {
+	t.Parallel()
+
 	cfg := Config{
 		MaxContextTokens:   1000,
 		ToolResultMaxChars: 100, // Small limit for testing
@@ -106,12 +119,12 @@ func TestTruncateToolResult_LargeOutput(t *testing.T) {
 	c := NewWithConfig(cfg)
 
 	// Create a tool result with large text
-	largeText := ""
+	var largeText strings.Builder
 	for i := 0; i < 50; i++ {
-		largeText += "1234567890"
+		largeText.WriteString("1234567890")
 	}
 
-	result := anthropic.NewToolResultBlock("tool-1", largeText, false)
+	result := anthropic.NewToolResultBlock("tool-1", largeText.String(), false)
 	truncated := c.truncateToolResult(result)
 
 	// Extract text from truncated result
@@ -132,6 +145,8 @@ func TestTruncateToolResult_LargeOutput(t *testing.T) {
 }
 
 func TestTruncateToolResult_SmallOutput(t *testing.T) {
+	t.Parallel()
+
 	cfg := Config{
 		MaxContextTokens:   1000,
 		ToolResultMaxChars: 1000,
@@ -152,6 +167,8 @@ func TestTruncateToolResult_SmallOutput(t *testing.T) {
 }
 
 func TestMessageCount(t *testing.T) {
+	t.Parallel()
+
 	c := New()
 
 	for i := 0; i < 5; i++ {
@@ -163,6 +180,8 @@ func TestMessageCount(t *testing.T) {
 }
 
 func TestDefaultConfig(t *testing.T) {
+	t.Parallel()
+
 	cfg := DefaultConfig()
 
 	if cfg.MaxContextTokens <= 0 {
@@ -179,6 +198,8 @@ func TestDefaultConfig(t *testing.T) {
 }
 
 func TestNoTrimWithZeroLimit(t *testing.T) {
+	t.Parallel()
+
 	cfg := Config{
 		MaxContextTokens:   0, // No limit
 		ToolResultMaxChars: 1000,
@@ -201,5 +222,6 @@ func contains(s, substr string) bool {
 			return true
 		}
 	}
+
 	return false
 }

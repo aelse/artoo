@@ -44,6 +44,7 @@ func main() {
 		input, err := term.ReadInput()
 		if err != nil {
 			term.PrintError(err)
+
 			break
 		}
 

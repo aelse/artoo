@@ -85,6 +85,7 @@ func (c *Conversation) truncateToolResult(result anthropic.ContentBlockParamUnio
 			truncated,
 			toolResult.IsError.Value,
 		)
+
 		return newBlock
 	}
 

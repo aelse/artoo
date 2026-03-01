@@ -5,6 +5,8 @@ import (
 	"bufio"
 	"bytes"
 	"cmp"
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -22,6 +24,9 @@ type GrepParams struct {
 	Include *string `json:"include,omitempty"` // Optional file pattern to include
 }
 
+// Number of fields in ripgrep output format: filepath|lineNum|lineText.
+const grepOutputFieldCount = 3
+
 // grepMatch represents a single match from ripgrep.
 type grepMatch struct {
 	path     string
@@ -38,7 +43,7 @@ type GrepTool struct{}
 // Call implements TypedTool.Call with strongly-typed parameters.
 func (t *GrepTool) Call(params GrepParams) (string, error) {
 	if params.Pattern == "" {
-		return "", fmt.Errorf("pattern is required")
+		return "", errors.New("pattern is required")
 	}
 
 	// Determine search path
@@ -67,12 +72,12 @@ func (t *GrepTool) Call(params GrepParams) (string, error) {
 	args = append(args, searchPath)
 
 	// Execute ripgrep
-	cmd := exec.Command(rgPath, args...)
+	cmd := exec.CommandContext(context.Background(), rgPath, args...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
-	err = cmd.Run()
+	_ = cmd.Run()
 	exitCode := cmd.ProcessState.ExitCode()
 
 	// Exit code 1 means no matches found
@@ -123,8 +128,8 @@ func (t *GrepTool) parseRipgrepOutput(output string) ([]grepMatch, error) {
 		}
 
 		// Parse format: filepath|lineNum|lineText
-		parts := strings.SplitN(line, "|", 3)
-		if len(parts) < 3 {
+		parts := strings.SplitN(line, "|", grepOutputFieldCount)
+		if len(parts) < grepOutputFieldCount {
 			continue
 		}
 
@@ -159,10 +164,10 @@ func (t *GrepTool) parseRipgrepOutput(output string) ([]grepMatch, error) {
 }
 
 // formatOutput formats the matches into a human-readable output.
-func (t *GrepTool) formatOutput(pattern string, matches []grepMatch, truncated bool) string {
+func (t *GrepTool) formatOutput(_ string, matches []grepMatch, truncated bool) string {
 	var output strings.Builder
 
-	output.WriteString(fmt.Sprintf("Found %d matches\n", len(matches)))
+	fmt.Fprintf(&output, "Found %d matches\n", len(matches))
 
 	currentFile := ""
 	for _, match := range matches {
@@ -170,10 +175,12 @@ func (t *GrepTool) formatOutput(pattern string, matches []grepMatch, truncated b
 			if currentFile != "" {
 				output.WriteString("\n")
 			}
+
 			currentFile = match.path
-			output.WriteString(fmt.Sprintf("%s:\n", match.path))
+			output.WriteString(match.path + ":\n")
 		}
-		output.WriteString(fmt.Sprintf("  Line %d: %s\n", match.lineNum, match.lineText))
+
+		fmt.Fprintf(&output, "  Line %d: %s\n", match.lineNum, match.lineText)
 	}
 
 	if truncated {

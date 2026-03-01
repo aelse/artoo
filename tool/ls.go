@@ -3,6 +3,7 @@ package tool
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os/exec"
 	"path/filepath"
@@ -47,12 +48,12 @@ type LsParams struct {
 	Ignore []string `json:"ignore,omitempty"` // Optional glob patterns to ignore
 }
 
-// Ensure LsTool implements TypedTool[LsParams]
+// Ensure LsTool implements TypedTool[LsParams].
 var _ TypedTool[LsParams] = (*LsTool)(nil)
 
 type LsTool struct{}
 
-// Call implements TypedTool.Call with strongly-typed parameters
+// Call implements TypedTool.Call with strongly-typed parameters.
 func (t *LsTool) Call(params LsParams) (string, error) {
 	// Determine search path
 	searchPath := "."
@@ -89,10 +90,11 @@ func (t *LsTool) Call(params LsParams) (string, error) {
 
 	// Build and render directory tree
 	output := t.renderTree(absPath, files, truncated)
+
 	return output, nil
 }
 
-// getFiles uses ripgrep to list files with ignore patterns
+// getFiles uses ripgrep to list files with ignore patterns.
 func (t *LsTool) getFiles(searchPath string, ignoreGlobs []string) ([]string, error) {
 	// Find ripgrep executable
 	rgPath, err := exec.LookPath("rg")
@@ -107,7 +109,7 @@ func (t *LsTool) getFiles(searchPath string, ignoreGlobs []string) ([]string, er
 	}
 
 	// Execute ripgrep in the search path
-	cmd := exec.Command(rgPath, args...)
+	cmd := exec.CommandContext(context.Background(), rgPath, args...)
 	cmd.Dir = searchPath
 
 	var stdout, stderr bytes.Buffer
@@ -120,6 +122,7 @@ func (t *LsTool) getFiles(searchPath string, ignoreGlobs []string) ([]string, er
 		if cmd.ProcessState.ExitCode() == 1 {
 			return []string{}, nil
 		}
+
 		return nil, fmt.Errorf("ripgrep failed: %s", stderr.String())
 	}
 
@@ -130,10 +133,11 @@ func (t *LsTool) getFiles(searchPath string, ignoreGlobs []string) ([]string, er
 	}
 
 	files := strings.Split(strings.TrimSpace(output), "\n")
+
 	return files, nil
 }
 
-// renderTree builds a tree structure representation of files
+// renderTree builds a tree structure representation of files.
 func (t *LsTool) renderTree(basePath string, files []string, truncated bool) string {
 	// Build directory structure
 	dirs := make(map[string]bool)
@@ -182,7 +186,7 @@ func (t *LsTool) renderTree(basePath string, files []string, truncated bool) str
 
 		// Render directory name (except for root ".")
 		if depth > 0 {
-			result.WriteString(fmt.Sprintf("%s%s/\n", indent, filepath.Base(dirPath)))
+			fmt.Fprintf(&result, "%s%s/\n", indent, filepath.Base(dirPath))
 		}
 
 		childIndent := strings.Repeat("  ", depth+1)
@@ -205,7 +209,7 @@ func (t *LsTool) renderTree(basePath string, files []string, truncated bool) str
 		if files := filesByDir[dirPath]; len(files) > 0 {
 			slices.Sort(files)
 			for _, file := range files {
-				result.WriteString(fmt.Sprintf("%s%s\n", childIndent, file))
+				fmt.Fprintf(&result, "%s%s\n", childIndent, file)
 			}
 		}
 
@@ -215,16 +219,21 @@ func (t *LsTool) renderTree(basePath string, files []string, truncated bool) str
 	output.WriteString(renderDir(".", 0))
 
 	if truncated {
-		output.WriteString(fmt.Sprintf("\n(Showing first %d files. Results truncated.)\n", lsLimit))
+		fmt.Fprintf(&output, "\n(Showing first %d files. Results truncated.)\n", lsLimit)
 	}
 
 	return output.String()
 }
 
 func (t *LsTool) Param() anthropic.ToolParam {
+	const desc = "Lists files and directories in a given path. The path parameter must be absolute; " +
+		"omit it to use the current workspace directory. You can optionally provide an array of glob patterns " +
+		"to ignore with the ignore parameter. You should generally prefer the Glob and Grep tools, " +
+		"if you know which directories to search."
+
 	return anthropic.ToolParam{
 		Name:        "list",
-		Description: anthropic.String("Lists files and directories in a given path. The path parameter must be absolute; omit it to use the current workspace directory. You can optionally provide an array of glob patterns to ignore with the ignore parameter. You should generally prefer the Glob and Grep tools, if you know which directories to search."),
+		Description: anthropic.String(desc),
 		InputSchema: anthropic.ToolInputSchemaParam{
 			Properties: map[string]any{
 				"path": map[string]any{

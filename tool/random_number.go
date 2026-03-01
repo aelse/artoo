@@ -22,12 +22,12 @@ type RandomNumberParams struct {
 	Max int `json:"max"`
 }
 
-// Ensure RandomNumberTool implements TypedTool[RandomNumberParams]
+// Ensure RandomNumberTool implements TypedTool[RandomNumberParams].
 var _ TypedTool[RandomNumberParams] = (*RandomNumberTool)(nil)
 
 type RandomNumberTool struct{}
 
-// Call implements TypedTool.Call with strongly-typed parameters
+// Call implements TypedTool.Call with strongly-typed parameters.
 func (t *RandomNumberTool) Call(params RandomNumberParams) (string, error) {
 	// Validate parameters
 	if params.Min > params.Max {
@@ -42,6 +42,7 @@ func (t *RandomNumberTool) Call(params RandomNumberParams) (string, error) {
 	}
 
 	result := int(n.Int64()) + params.Min
+
 	return strconv.Itoa(result), nil
 }
 

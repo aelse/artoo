@@ -5,7 +5,9 @@ import (
 	"testing"
 )
 
-func TestTerminal_ConcurrentOnToolResult(_ *testing.T) {
+func TestTerminal_ConcurrentOnToolResult(t *testing.T) {
+	t.Parallel()
+
 	term := NewTerminal()
 
 	const numGoroutines = 20

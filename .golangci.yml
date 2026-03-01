@@ -169,6 +169,10 @@ linters:
         path: tool/(grep|ls)
         text: "(G204|G703|G301|G306)"
       - linters:
+          - testpackage
+        path: (.+)_test.go
+        text: "package should be"
+      - linters:
           - intrange
         path: conversation/conversation_test.go
         text: "for loop"

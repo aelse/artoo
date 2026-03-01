@@ -5,6 +5,8 @@ import (
 )
 
 func TestLoadConfig_Defaults(t *testing.T) {
+	t.Parallel()
+
 	// Don't set any ARTOO env vars, so defaults are used
 	cfg := LoadConfig()
 
@@ -34,6 +36,8 @@ func TestLoadConfig_Defaults(t *testing.T) {
 }
 
 func TestLoadConfig_FromEnv(t *testing.T) {
+	t.Parallel()
+
 	t.Setenv("ARTOO_MODEL", "claude-opus-4-20250805")
 	t.Setenv("ARTOO_MAX_TOKENS", "16384")
 	t.Setenv("ARTOO_MAX_CONTEXT_TOKENS", "200000")
@@ -69,6 +73,8 @@ func TestLoadConfig_FromEnv(t *testing.T) {
 }
 
 func TestGetEnv(t *testing.T) {
+	t.Parallel()
+
 	// Test unset - use a variable name that shouldn't be set
 	if getEnv("_ARTOO_NONEXISTENT_VAR", "default") != "default" {
 		t.Error("getEnv should return default for unset var")
@@ -82,6 +88,8 @@ func TestGetEnv(t *testing.T) {
 }
 
 func TestGetEnvInt(t *testing.T) {
+	t.Parallel()
+
 	// Test unset - use a variable name that shouldn't be set
 	if getEnvInt("_ARTOO_NONEXISTENT_INT", 42) != 42 {
 		t.Error("getEnvInt should return default for unset var")
@@ -101,6 +109,8 @@ func TestGetEnvInt(t *testing.T) {
 }
 
 func TestGetEnvInt64(t *testing.T) {
+	t.Parallel()
+
 	// Test unset - use a variable name that shouldn't be set
 	if getEnvInt64("_ARTOO_NONEXISTENT_INT64", 42) != 42 {
 		t.Error("getEnvInt64 should return default for unset var")
@@ -120,6 +130,8 @@ func TestGetEnvInt64(t *testing.T) {
 }
 
 func TestGetEnvBool(t *testing.T) {
+	t.Parallel()
+
 	// Test unset - use a variable name that shouldn't be set
 	if getEnvBool("_ARTOO_NONEXISTENT_BOOL", false) != false {
 		t.Error("getEnvBool should return default for unset var")
@@ -151,6 +163,8 @@ func TestGetEnvBool(t *testing.T) {
 }
 
 func TestGetEnvBool_DefaultTrue(t *testing.T) {
+	t.Parallel()
+
 	// Test unset with default true - use a variable name that shouldn't be set
 	if getEnvBool("_ARTOO_NONEXISTENT_BOOL_TRUE", true) != true {
 		t.Error("getEnvBool should return true default")
@@ -164,6 +178,8 @@ func TestGetEnvBool_DefaultTrue(t *testing.T) {
 }
 
 func TestPartialEnvConfig(t *testing.T) {
+	t.Parallel()
+
 	// Set only model
 	t.Setenv("ARTOO_MODEL", "custom-model")
 
