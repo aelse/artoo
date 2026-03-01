@@ -72,13 +72,20 @@ func (a *Agent) SendMessage(ctx context.Context, text string, cb Callbacks) (*Re
 		a.conversation.Trim()
 
 		cb.OnThinking()
-		message, err := a.client.Messages.New(ctx, anthropic.MessageNewParams{
-			Model:     anthropic.Model(a.config.Model),
-			MaxTokens: a.config.MaxTokens,
-			Messages:  a.conversation.Messages(),
-			Tools:     a.toolUnionParams,
-		})
-		cb.OnThinkingDone()
+		var message *anthropic.Message
+		var err error
+		if a.config.Streaming {
+			cb.OnThinkingDone() // Stop spinner before streaming starts
+			message, err = a.callStreaming(ctx, cb)
+		} else {
+			message, err = a.client.Messages.New(ctx, anthropic.MessageNewParams{
+				Model:     anthropic.Model(a.config.Model),
+				MaxTokens: a.config.MaxTokens,
+				Messages:  a.conversation.Messages(),
+				Tools:     a.toolUnionParams,
+			})
+			cb.OnThinkingDone()
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -137,6 +144,44 @@ func (a *Agent) SendMessage(ctx context.Context, text string, cb Callbacks) (*Re
 		Text:       finalText,
 		StopReason: finalStopReason,
 	}, nil
+}
+
+// callStreaming calls the Claude API with streaming enabled and emits text deltas via callback.
+func (a *Agent) callStreaming(ctx context.Context, cb Callbacks) (*anthropic.Message, error) {
+	stream := a.client.Messages.NewStreaming(ctx, anthropic.MessageNewParams{
+		Model:     anthropic.Model(a.config.Model),
+		MaxTokens: a.config.MaxTokens,
+		Messages:  a.conversation.Messages(),
+		Tools:     a.toolUnionParams,
+	})
+
+	var message anthropic.Message
+
+	for stream.Next() {
+		event := stream.Current()
+
+		switch e := event.AsAny().(type) {
+		case anthropic.MessageStartEvent:
+			message = e.Message
+		case anthropic.ContentBlockDeltaEvent:
+			if d, ok := e.Delta.AsAny().(anthropic.TextDelta); ok {
+				cb.OnTextDelta(d.Text)
+			}
+		case anthropic.MessageDeltaEvent:
+			if e.Delta.StopReason != "" {
+				message.StopReason = e.Delta.StopReason
+			}
+			if e.Usage.OutputTokens > 0 {
+				message.Usage.OutputTokens = e.Usage.OutputTokens
+			}
+		}
+	}
+
+	if err := stream.Err(); err != nil {
+		return nil, err
+	}
+
+	return &message, nil
 }
 
 // executeToolsConcurrently executes tool blocks concurrently,

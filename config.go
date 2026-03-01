@@ -42,6 +42,7 @@ func LoadConfig() AppConfig {
 			MaxConcurrentTools: getEnvInt("ARTOO_MAX_CONCURRENT_TOOLS", defaultMaxConcurrentTools),
 			PluginDir:          getEnv("ARTOO_PLUGIN_DIR", defaultPluginDir),
 			PluginTimeout:      time.Duration(getEnvInt("ARTOO_PLUGIN_TIMEOUT", defaultPluginTimeout)) * time.Second,
+			Streaming:          getEnvBool("ARTOO_STREAMING", true),
 		},
 		Conversation: conversation.Config{
 			MaxContextTokens:   getEnvInt("ARTOO_MAX_CONTEXT_TOKENS", defaultMaxContextTokens),

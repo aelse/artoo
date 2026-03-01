@@ -25,7 +25,7 @@ func main() {
 	)
 
 	// Create terminal UI
-	term := ui.NewTerminal()
+	term := ui.NewTerminal(cfg.Agent.Streaming)
 	term.PrintTitle()
 
 	// Load plugins and create agent

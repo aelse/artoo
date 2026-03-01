@@ -151,13 +151,14 @@ func (m inputModel) View() string {
 
 // Terminal manages CLI input/output and styling.
 type Terminal struct {
-	mu      sync.Mutex
-	spinner *spinnerRunner
+	mu        sync.Mutex
+	spinner   *spinnerRunner
+	streaming bool
 }
 
-// NewTerminal creates a new Terminal.
-func NewTerminal() *Terminal {
-	return &Terminal{}
+// NewTerminal creates a new Terminal with optional streaming support.
+func NewTerminal(streaming bool) *Terminal {
+	return &Terminal{streaming: streaming}
 }
 
 // PrintTitle prints the application title.
@@ -219,29 +220,47 @@ func (t *Terminal) ShowSpinner(message string) func() {
 
 // OnThinking is called when the agent starts thinking.
 func (t *Terminal) OnThinking() {
-	t.mu.Lock()
-	spinner := newSpinner("Thinking...")
-	t.spinner = spinner
-	t.mu.Unlock()
-	spinner.start()
+	if t.streaming {
+		// Print prefix; text will stream after OnThinkingDone
+		_, _ = fmt.Fprint(os.Stdout, claudeStyle.Render("Claude")+": ")
+	} else {
+		t.mu.Lock()
+		spinner := newSpinner("Thinking...")
+		t.spinner = spinner
+		t.mu.Unlock()
+		spinner.start()
+	}
 }
 
 // OnThinkingDone is called when the API response is received.
 func (t *Terminal) OnThinkingDone() {
-	t.mu.Lock()
-	spinner := t.spinner
-	t.spinner = nil
-	t.mu.Unlock()
-	if spinner != nil {
-		spinner.stop()
+	if !t.streaming {
+		t.mu.Lock()
+		spinner := t.spinner
+		t.spinner = nil
+		t.mu.Unlock()
+		if spinner != nil {
+			spinner.stop()
+		}
 	}
+	// When streaming, nothing to do — text is about to flow
 }
 
 // OnText is called when the assistant produces text.
 func (t *Terminal) OnText(text string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	_, _ = fmt.Fprintf(os.Stdout, "%s: %s\n", claudeStyle.Render("Claude"), text)
+	if t.streaming {
+		// Text was already printed via deltas; just finish the line
+		_, _ = fmt.Fprintln(os.Stdout)
+	} else {
+		_, _ = fmt.Fprintf(os.Stdout, "%s: %s\n", claudeStyle.Render("Claude"), text)
+	}
+}
+
+// OnTextDelta is called when a text delta is received (streaming only).
+func (t *Terminal) OnTextDelta(delta string) {
+	_, _ = fmt.Fprint(os.Stdout, delta)
 }
 
 // OnToolCall is called when the assistant calls a tool.

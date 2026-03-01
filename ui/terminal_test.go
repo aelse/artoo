@@ -8,7 +8,7 @@ import (
 func TestTerminal_ConcurrentOnToolResult(t *testing.T) {
 	t.Parallel()
 
-	term := NewTerminal()
+	term := NewTerminal(false)
 
 	const numGoroutines = 20
 	var wg sync.WaitGroup

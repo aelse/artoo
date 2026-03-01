@@ -63,6 +63,7 @@ type mockCallbacks struct {
 func (m *mockCallbacks) OnThinking() {}
 func (m *mockCallbacks) OnThinkingDone() {}
 func (m *mockCallbacks) OnText(_ string) {}
+func (m *mockCallbacks) OnTextDelta(_ string) {}
 func (m *mockCallbacks) OnToolCall(_ string, _ string) {}
 func (m *mockCallbacks) OnToolResult(name string, output string, isError bool) {
 	m.mu.Lock()

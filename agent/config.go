@@ -19,6 +19,7 @@ type Config struct {
 	MaxConcurrentTools  int           // maximum concurrent tool executions
 	PluginDir           string        // Directory containing plugin executables
 	PluginTimeout       time.Duration // Execution timeout per plugin call
+	Streaming           bool          // Whether to use streaming API (default: true)
 }
 
 // DefaultConfig returns a Config with sensible defaults.
@@ -27,6 +28,7 @@ func DefaultConfig() Config {
 		Model:              string(anthropic.ModelClaude4Sonnet20250514),
 		MaxTokens:          defaultMaxTokens,
 		MaxConcurrentTools: defaultMaxConcurrentTools,
+		Streaming:          true,
 	}
 }
 
@@ -45,6 +47,9 @@ type Callbacks interface {
 
 	// OnText is called when the assistant produces text.
 	OnText(text string)
+
+	// OnTextDelta is called when a text delta is received (streaming only).
+	OnTextDelta(delta string)
 
 	// OnToolCall is called when the assistant calls a tool.
 	// input is the JSON-marshaled parameters.
