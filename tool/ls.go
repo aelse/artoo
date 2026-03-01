@@ -157,7 +157,7 @@ func (t *LsTool) renderTree(basePath string, files []string, truncated bool) str
 			parts = strings.Split(dir, string(filepath.Separator))
 		}
 
-		for i := 0; i <= len(parts); i++ {
+		for i := range len(parts) + 1 {
 			var dirPath string
 			if i == 0 {
 				dirPath = "."

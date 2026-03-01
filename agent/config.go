@@ -1,7 +1,11 @@
 // Package agent provides the core agent functionality for interacting with Claude.
 package agent
 
-import "github.com/anthropics/anthropic-sdk-go"
+import (
+	"time"
+
+	"github.com/anthropics/anthropic-sdk-go"
+)
 
 const (
 	defaultMaxTokens          = 8192
@@ -10,9 +14,11 @@ const (
 
 // Config holds agent configuration.
 type Config struct {
-	Model               string // e.g. "claude-sonnet-4-20250514"
-	MaxTokens           int64  // per-response token limit
-	MaxConcurrentTools  int    // maximum concurrent tool executions
+	Model               string        // e.g. "claude-sonnet-4-20250514"
+	MaxTokens           int64         // per-response token limit
+	MaxConcurrentTools  int           // maximum concurrent tool executions
+	PluginDir           string        // Directory containing plugin executables
+	PluginTimeout       time.Duration // Execution timeout per plugin call
 }
 
 // DefaultConfig returns a Config with sensible defaults.

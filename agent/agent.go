@@ -30,8 +30,11 @@ type Agent struct {
 }
 
 // New creates a new Agent with the given client and config.
-func New(client anthropic.Client, config Config) *Agent {
-	allTools := tool.AllTools
+// Additional tools can be provided via the extraTools parameter.
+func New(client anthropic.Client, config Config, extraTools ...tool.Tool) *Agent {
+	allTools := make([]tool.Tool, 0, len(tool.AllTools)+len(extraTools))
+	allTools = append(allTools, tool.AllTools...)
+	allTools = append(allTools, extraTools...)
 
 	return &Agent{
 		client:          client,

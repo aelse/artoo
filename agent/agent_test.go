@@ -1,7 +1,6 @@
 package agent
 
 import (
-	"context"
 	"encoding/json"
 	"sync"
 	"sync/atomic"
@@ -92,7 +91,7 @@ func TestExecuteToolsConcurrently_Single(t *testing.T) {
 	}
 
 	cb := &mockCallbacks{}
-	results := ag.executeToolsConcurrently(context.Background(), []anthropic.ToolUseBlock{block}, cb)
+	results := ag.executeToolsConcurrently(t.Context(), []anthropic.ToolUseBlock{block}, cb)
 
 	if len(results) != 1 {
 		t.Errorf("Expected 1 result, got %d", len(results))
@@ -118,7 +117,7 @@ func TestExecuteToolsConcurrently_Multiple(t *testing.T) {
 	}
 
 	cb := &mockCallbacks{}
-	results := ag.executeToolsConcurrently(context.Background(), blocks, cb)
+	results := ag.executeToolsConcurrently(t.Context(), blocks, cb)
 
 	if len(results) != 3 {
 		t.Errorf("Expected 3 results, got %d", len(results))
@@ -150,7 +149,7 @@ func TestExecuteToolsConcurrently_OrderPreserved(t *testing.T) {
 	}
 
 	cb := &mockCallbacks{}
-	results := ag.executeToolsConcurrently(context.Background(), blocks, cb)
+	results := ag.executeToolsConcurrently(t.Context(), blocks, cb)
 
 	if len(results) != 3 {
 		t.Errorf("Expected 3 results, got %d", len(results))
@@ -190,7 +189,7 @@ func TestExecuteToolsConcurrently_ErrorDoesNotAffectOthers(t *testing.T) {
 	}
 
 	cb := &mockCallbacks{}
-	results := ag.executeToolsConcurrently(context.Background(), blocks, cb)
+	results := ag.executeToolsConcurrently(t.Context(), blocks, cb)
 
 	if len(results) != 3 {
 		t.Errorf("Expected 3 results, got %d", len(results))
@@ -286,7 +285,7 @@ func TestExecuteToolsConcurrently_SemaphoreLimit(t *testing.T) {
 	}
 
 	cb := &mockCallbacks{}
-	results := ag.executeToolsConcurrently(context.Background(), blocks, cb)
+	results := ag.executeToolsConcurrently(t.Context(), blocks, cb)
 
 	if len(results) != 5 {
 		t.Errorf("Expected 5 results, got %d", len(results))

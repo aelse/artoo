@@ -3,7 +3,9 @@ package main
 
 import (
 	"os"
+	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/aelse/artoo/agent"
 	"github.com/aelse/artoo/conversation"
@@ -15,6 +17,7 @@ const (
 	defaultMaxConcurrentTools   = 4
 	defaultMaxContextTokens     = 180_000
 	defaultToolResultMaxChars   = 10_000
+	defaultPluginTimeout        = 30
 	defaultDebug                = false
 )
 
@@ -29,11 +32,16 @@ type AppConfig struct {
 // LoadConfig loads configuration from environment variables.
 // Unset variables use sensible defaults.
 func LoadConfig() AppConfig {
+	homeDir, _ := os.UserHomeDir()
+	defaultPluginDir := filepath.Join(homeDir, ".artoo", "plugins")
+
 	return AppConfig{
 		Agent: agent.Config{
 			Model:              getEnv("ARTOO_MODEL", defaultModel),
 			MaxTokens:          getEnvInt64("ARTOO_MAX_TOKENS", defaultMaxTokens),
 			MaxConcurrentTools: getEnvInt("ARTOO_MAX_CONCURRENT_TOOLS", defaultMaxConcurrentTools),
+			PluginDir:          getEnv("ARTOO_PLUGIN_DIR", defaultPluginDir),
+			PluginTimeout:      time.Duration(getEnvInt("ARTOO_PLUGIN_TIMEOUT", defaultPluginTimeout)) * time.Second,
 		},
 		Conversation: conversation.Config{
 			MaxContextTokens:   getEnvInt("ARTOO_MAX_CONTEXT_TOKENS", defaultMaxContextTokens),

@@ -87,7 +87,7 @@ func TestTrim_AboveThreshold(t *testing.T) {
 	c := NewWithConfig(cfg)
 
 	// Add multiple messages
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		c.Append(anthropic.NewUserMessage(anthropic.NewTextBlock("msg")))
 	}
 
@@ -120,7 +120,7 @@ func TestTruncateToolResult_LargeOutput(t *testing.T) {
 
 	// Create a tool result with large text
 	var largeText strings.Builder
-	for i := 0; i < 50; i++ {
+	for range 50 {
 		largeText.WriteString("1234567890")
 	}
 
@@ -171,7 +171,7 @@ func TestMessageCount(t *testing.T) {
 
 	c := New()
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		c.Append(anthropic.NewUserMessage(anthropic.NewTextBlock("msg")))
 		if c.MessageCount() != i+1 {
 			t.Errorf("after %d appends, expected count %d, got %d", i+1, i+1, c.MessageCount())
@@ -217,8 +217,8 @@ func TestNoTrimWithZeroLimit(t *testing.T) {
 }
 
 func contains(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
+	for i := range len(s) - len(substr) + 1 {
+		if s[i : i+len(substr)] == substr {
 			return true
 		}
 	}

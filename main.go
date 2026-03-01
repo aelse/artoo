@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/aelse/artoo/agent"
+	"github.com/aelse/artoo/tool"
 	"github.com/aelse/artoo/ui"
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
@@ -27,8 +28,9 @@ func main() {
 	term := ui.NewTerminal()
 	term.PrintTitle()
 
-	// Create agent with loaded config
-	a := agent.New(client, cfg.Agent)
+	// Load plugins and create agent
+	extraTools := loadAndValidatePlugins(cfg)
+	a := agent.New(client, cfg.Agent, extraTools...)
 
 	// Update conversation with config (for context management)
 	a.SetConversationConfig(cfg.Conversation)
@@ -62,4 +64,34 @@ func main() {
 		// Print spacing between iterations
 		fmt.Println()
 	}
+}
+
+func loadAndValidatePlugins(cfg AppConfig) []tool.Tool {
+	plugins, errs := tool.LoadPlugins(cfg.Agent.PluginDir, cfg.Agent.PluginTimeout)
+	if len(errs) > 0 {
+		for _, err := range errs {
+			fmt.Fprintf(os.Stderr, "Warning: %v\n", err)
+		}
+	}
+
+	if len(plugins) == 0 {
+		return nil
+	}
+
+	merged, err := tool.MergeTools(tool.AllTools, plugins)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	if cfg.Debug {
+		fmt.Fprintf(os.Stderr, "Debug: Loaded %d plugins\n", len(plugins))
+		for _, p := range plugins {
+			fmt.Fprintf(os.Stderr, "Debug:   - %s\n", p.Param().Name)
+		}
+	}
+
+	_ = merged // validation only; extraTools passed to agent
+
+	return plugins
 }
