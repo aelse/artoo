@@ -75,7 +75,6 @@ func (a *Agent) SendMessage(ctx context.Context, text string, cb Callbacks) (*Re
 			Tools:     a.toolUnionParams,
 		})
 		cb.OnThinkingDone()
-
 		if err != nil {
 			return nil, err
 		}
@@ -105,7 +104,10 @@ func (a *Agent) SendMessage(ctx context.Context, text string, cb Callbacks) (*Re
 				toolUseBlocks = append(toolUseBlocks, b)
 
 				// Notify callback of tool call with JSON input
-				inputJSON, _ := json.Marshal(b.Input)
+				inputJSON, err := json.Marshal(b.Input)
+				if err != nil {
+					inputJSON = []byte("{}")
+				}
 				cb.OnToolCall(b.Name, string(inputJSON))
 			}
 		}
@@ -135,7 +137,11 @@ func (a *Agent) SendMessage(ctx context.Context, text string, cb Callbacks) (*Re
 
 // executeToolsConcurrently executes tool blocks concurrently,
 // returning results in the original order.
-func (a *Agent) executeToolsConcurrently(ctx context.Context, blocks []anthropic.ToolUseBlock, cb Callbacks) []anthropic.ContentBlockParamUnion {
+func (a *Agent) executeToolsConcurrently(
+	_ context.Context,
+	blocks []anthropic.ToolUseBlock,
+	cb Callbacks,
+) []anthropic.ContentBlockParamUnion {
 	// Determine concurrency limit
 	maxConcurrent := a.config.MaxConcurrentTools
 	if maxConcurrent <= 0 {
@@ -198,6 +204,7 @@ func makeToolUnionParams(tools []tool.Tool) []anthropic.ToolUnionParam {
 		toolParam := tools[i].Param()
 		tup[i] = anthropic.ToolUnionParam{OfTool: &toolParam}
 	}
+
 	return tup
 }
 
@@ -207,6 +214,7 @@ func makeToolMap(tools []tool.Tool) map[string]tool.Tool {
 		t := tools[i]
 		toolMap[t.Param().Name] = tools[i]
 	}
+
 	return toolMap
 }
 

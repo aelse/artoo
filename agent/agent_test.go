@@ -12,7 +12,7 @@ import (
 	"github.com/anthropics/anthropic-sdk-go"
 )
 
-// mockTool implements tool.Tool for testing
+// mockTool implements tool.Tool for testing.
 type mockTool struct {
 	name     string
 	sleep    time.Duration
@@ -51,7 +51,7 @@ func (m *mockTool) Call(block anthropic.ToolUseBlock) *anthropic.ContentBlockPar
 	))
 }
 
-// mockCallbacks implements Callbacks for testing
+// mockCallbacks implements Callbacks for testing.
 type mockCallbacks struct {
 	toolResultsCalls []struct {
 		name    string
@@ -63,8 +63,8 @@ type mockCallbacks struct {
 
 func (m *mockCallbacks) OnThinking() {}
 func (m *mockCallbacks) OnThinkingDone() {}
-func (m *mockCallbacks) OnText(text string) {}
-func (m *mockCallbacks) OnToolCall(name string, input string) {}
+func (m *mockCallbacks) OnText(_ string) {}
+func (m *mockCallbacks) OnToolCall(_ string, _ string) {}
 func (m *mockCallbacks) OnToolResult(name string, output string, isError bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -76,7 +76,9 @@ func (m *mockCallbacks) OnToolResult(name string, output string, isError bool) {
 }
 
 func TestExecuteToolsConcurrently_Single(t *testing.T) {
-	agent := &Agent{
+	t.Parallel()
+
+	ag := &Agent{
 		config: Config{MaxConcurrentTools: 4},
 		toolMap: map[string]tool.Tool{
 			"tool1": &mockTool{name: "tool1"},
@@ -90,7 +92,7 @@ func TestExecuteToolsConcurrently_Single(t *testing.T) {
 	}
 
 	cb := &mockCallbacks{}
-	results := agent.executeToolsConcurrently(context.Background(), []anthropic.ToolUseBlock{block}, cb)
+	results := ag.executeToolsConcurrently(context.Background(), []anthropic.ToolUseBlock{block}, cb)
 
 	if len(results) != 1 {
 		t.Errorf("Expected 1 result, got %d", len(results))
@@ -98,7 +100,9 @@ func TestExecuteToolsConcurrently_Single(t *testing.T) {
 }
 
 func TestExecuteToolsConcurrently_Multiple(t *testing.T) {
-	agent := &Agent{
+	t.Parallel()
+
+	ag := &Agent{
 		config: Config{MaxConcurrentTools: 4},
 		toolMap: map[string]tool.Tool{
 			"tool1": &mockTool{name: "tool1"},
@@ -114,7 +118,7 @@ func TestExecuteToolsConcurrently_Multiple(t *testing.T) {
 	}
 
 	cb := &mockCallbacks{}
-	results := agent.executeToolsConcurrently(context.Background(), blocks, cb)
+	results := ag.executeToolsConcurrently(context.Background(), blocks, cb)
 
 	if len(results) != 3 {
 		t.Errorf("Expected 3 results, got %d", len(results))
@@ -126,8 +130,10 @@ func TestExecuteToolsConcurrently_Multiple(t *testing.T) {
 }
 
 func TestExecuteToolsConcurrently_OrderPreserved(t *testing.T) {
+	t.Parallel()
+
 	// Use tools with different sleep durations to verify result ordering
-	agent := &Agent{
+	ag := &Agent{
 		config: Config{MaxConcurrentTools: 4},
 		toolMap: map[string]tool.Tool{
 			"fast":   &mockTool{name: "fast", sleep: 10 * time.Millisecond},
@@ -144,7 +150,7 @@ func TestExecuteToolsConcurrently_OrderPreserved(t *testing.T) {
 	}
 
 	cb := &mockCallbacks{}
-	results := agent.executeToolsConcurrently(context.Background(), blocks, cb)
+	results := ag.executeToolsConcurrently(context.Background(), blocks, cb)
 
 	if len(results) != 3 {
 		t.Errorf("Expected 3 results, got %d", len(results))
@@ -166,7 +172,9 @@ func TestExecuteToolsConcurrently_OrderPreserved(t *testing.T) {
 }
 
 func TestExecuteToolsConcurrently_ErrorDoesNotAffectOthers(t *testing.T) {
-	agent := &Agent{
+	t.Parallel()
+
+	ag := &Agent{
 		config: Config{MaxConcurrentTools: 4},
 		toolMap: map[string]tool.Tool{
 			"tool1": &mockTool{name: "tool1"},
@@ -182,7 +190,7 @@ func TestExecuteToolsConcurrently_ErrorDoesNotAffectOthers(t *testing.T) {
 	}
 
 	cb := &mockCallbacks{}
-	results := agent.executeToolsConcurrently(context.Background(), blocks, cb)
+	results := ag.executeToolsConcurrently(context.Background(), blocks, cb)
 
 	if len(results) != 3 {
 		t.Errorf("Expected 3 results, got %d", len(results))
@@ -209,7 +217,7 @@ func TestExecuteToolsConcurrently_ErrorDoesNotAffectOthers(t *testing.T) {
 	}
 }
 
-// concurrentTrackingTool tracks concurrent execution
+// concurrentTrackingTool tracks concurrent execution.
 type concurrentTrackingTool struct {
 	currentConcurrent int32
 	maxConcurrent     int32
@@ -233,11 +241,11 @@ func (c *concurrentTrackingTool) Call(block anthropic.ToolUseBlock) *anthropic.C
 
 	// Update max concurrent
 	for {
-		max := atomic.LoadInt32(&c.maxConcurrent)
-		if current <= max {
+		prevMax := atomic.LoadInt32(&c.maxConcurrent)
+		if current <= prevMax {
 			break
 		}
-		if atomic.CompareAndSwapInt32(&c.maxConcurrent, max, current) {
+		if atomic.CompareAndSwapInt32(&c.maxConcurrent, prevMax, current) {
 			break
 		}
 	}
@@ -254,11 +262,13 @@ func (c *concurrentTrackingTool) Call(block anthropic.ToolUseBlock) *anthropic.C
 }
 
 func TestExecuteToolsConcurrently_SemaphoreLimit(t *testing.T) {
+	t.Parallel()
+
 	tracker := &concurrentTrackingTool{
 		sleep: 50 * time.Millisecond,
 	}
 
-	agent := &Agent{
+	ag := &Agent{
 		config: Config{MaxConcurrentTools: 1},
 		toolMap: map[string]tool.Tool{
 			"tracker": tracker,
@@ -275,7 +285,7 @@ func TestExecuteToolsConcurrently_SemaphoreLimit(t *testing.T) {
 	}
 
 	cb := &mockCallbacks{}
-	results := agent.executeToolsConcurrently(context.Background(), blocks, cb)
+	results := ag.executeToolsConcurrently(context.Background(), blocks, cb)
 
 	if len(results) != 5 {
 		t.Errorf("Expected 5 results, got %d", len(results))

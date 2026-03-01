@@ -1,21 +1,11 @@
 package main
 
 import (
-	"os"
 	"testing"
 )
 
 func TestLoadConfig_Defaults(t *testing.T) {
-	// Clear all artoo env vars to test defaults
-	defer clearEnv(
-		"ARTOO_MODEL",
-		"ARTOO_MAX_TOKENS",
-		"ARTOO_MAX_CONTEXT_TOKENS",
-		"ARTOO_TOOL_RESULT_MAX_CHARS",
-		"ARTOO_MAX_CONCURRENT_TOOLS",
-		"ARTOO_DEBUG",
-	)
-
+	// Don't set any ARTOO env vars, so defaults are used
 	cfg := LoadConfig()
 
 	if cfg.Agent.Model != "claude-sonnet-4-20250514" {
@@ -44,21 +34,12 @@ func TestLoadConfig_Defaults(t *testing.T) {
 }
 
 func TestLoadConfig_FromEnv(t *testing.T) {
-	defer clearEnv(
-		"ARTOO_MODEL",
-		"ARTOO_MAX_TOKENS",
-		"ARTOO_MAX_CONTEXT_TOKENS",
-		"ARTOO_TOOL_RESULT_MAX_CHARS",
-		"ARTOO_MAX_CONCURRENT_TOOLS",
-		"ARTOO_DEBUG",
-	)
-
-	os.Setenv("ARTOO_MODEL", "claude-opus-4-20250805")
-	os.Setenv("ARTOO_MAX_TOKENS", "16384")
-	os.Setenv("ARTOO_MAX_CONTEXT_TOKENS", "200000")
-	os.Setenv("ARTOO_TOOL_RESULT_MAX_CHARS", "20000")
-	os.Setenv("ARTOO_MAX_CONCURRENT_TOOLS", "8")
-	os.Setenv("ARTOO_DEBUG", "true")
+	t.Setenv("ARTOO_MODEL", "claude-opus-4-20250805")
+	t.Setenv("ARTOO_MAX_TOKENS", "16384")
+	t.Setenv("ARTOO_MAX_CONTEXT_TOKENS", "200000")
+	t.Setenv("ARTOO_TOOL_RESULT_MAX_CHARS", "20000")
+	t.Setenv("ARTOO_MAX_CONCURRENT_TOOLS", "8")
+	t.Setenv("ARTOO_DEBUG", "true")
 
 	cfg := LoadConfig()
 
@@ -88,75 +69,67 @@ func TestLoadConfig_FromEnv(t *testing.T) {
 }
 
 func TestGetEnv(t *testing.T) {
-	defer clearEnv("TEST_VAR")
-
-	// Test unset
-	if getEnv("TEST_VAR", "default") != "default" {
+	// Test unset - use a variable name that shouldn't be set
+	if getEnv("_ARTOO_NONEXISTENT_VAR", "default") != "default" {
 		t.Error("getEnv should return default for unset var")
 	}
 
 	// Test set
-	os.Setenv("TEST_VAR", "value")
+	t.Setenv("TEST_VAR", "value")
 	if getEnv("TEST_VAR", "default") != "value" {
 		t.Error("getEnv should return env var value")
 	}
 }
 
 func TestGetEnvInt(t *testing.T) {
-	defer clearEnv("TEST_INT")
-
-	// Test unset
-	if getEnvInt("TEST_INT", 42) != 42 {
+	// Test unset - use a variable name that shouldn't be set
+	if getEnvInt("_ARTOO_NONEXISTENT_INT", 42) != 42 {
 		t.Error("getEnvInt should return default for unset var")
 	}
 
 	// Test valid
-	os.Setenv("TEST_INT", "100")
+	t.Setenv("TEST_INT", "100")
 	if getEnvInt("TEST_INT", 42) != 100 {
 		t.Error("getEnvInt should parse valid int")
 	}
 
 	// Test invalid (should use default)
-	os.Setenv("TEST_INT", "not-a-number")
-	if getEnvInt("TEST_INT", 42) != 42 {
+	t.Setenv("TEST_INT_INVALID", "not-a-number")
+	if getEnvInt("TEST_INT_INVALID", 42) != 42 {
 		t.Error("getEnvInt should return default for invalid int")
 	}
 }
 
 func TestGetEnvInt64(t *testing.T) {
-	defer clearEnv("TEST_INT64")
-
-	// Test unset
-	if getEnvInt64("TEST_INT64", 42) != 42 {
+	// Test unset - use a variable name that shouldn't be set
+	if getEnvInt64("_ARTOO_NONEXISTENT_INT64", 42) != 42 {
 		t.Error("getEnvInt64 should return default for unset var")
 	}
 
 	// Test valid
-	os.Setenv("TEST_INT64", "9999999999")
+	t.Setenv("TEST_INT64", "9999999999")
 	if getEnvInt64("TEST_INT64", 42) != 9999999999 {
 		t.Error("getEnvInt64 should parse valid int64")
 	}
 
 	// Test invalid (should use default)
-	os.Setenv("TEST_INT64", "not-a-number")
-	if getEnvInt64("TEST_INT64", 42) != 42 {
+	t.Setenv("TEST_INT64_INVALID", "not-a-number")
+	if getEnvInt64("TEST_INT64_INVALID", 42) != 42 {
 		t.Error("getEnvInt64 should return default for invalid int64")
 	}
 }
 
 func TestGetEnvBool(t *testing.T) {
-	defer clearEnv("TEST_BOOL")
-
-	// Test unset
-	if getEnvBool("TEST_BOOL", false) != false {
+	// Test unset - use a variable name that shouldn't be set
+	if getEnvBool("_ARTOO_NONEXISTENT_BOOL", false) != false {
 		t.Error("getEnvBool should return default for unset var")
 	}
 
 	// Test true values
 	trueValues := []string{"1", "true", "True", "TRUE", "yes", "Yes", "YES", "on", "On", "ON"}
 	for _, val := range trueValues {
-		os.Setenv("TEST_BOOL", val)
-		if !getEnvBool("TEST_BOOL", false) {
+		t.Setenv("TEST_BOOL_VAL", val)
+		if !getEnvBool("TEST_BOOL_VAL", false) {
 			t.Errorf("getEnvBool should parse %q as true", val)
 		}
 	}
@@ -164,46 +137,35 @@ func TestGetEnvBool(t *testing.T) {
 	// Test false values
 	falseValues := []string{"0", "false", "False", "FALSE", "no", "No", "NO", "off", "Off", "OFF"}
 	for _, val := range falseValues {
-		os.Setenv("TEST_BOOL", val)
-		if getEnvBool("TEST_BOOL", true) {
+		t.Setenv("TEST_BOOL_VAL", val)
+		if getEnvBool("TEST_BOOL_VAL", true) {
 			t.Errorf("getEnvBool should parse %q as false", val)
 		}
 	}
 
 	// Test invalid (should use default)
-	os.Setenv("TEST_BOOL", "maybe")
-	if getEnvBool("TEST_BOOL", true) != true {
+	t.Setenv("TEST_BOOL_INVALID", "maybe")
+	if getEnvBool("TEST_BOOL_INVALID", true) != true {
 		t.Error("getEnvBool should return default for invalid value")
 	}
 }
 
 func TestGetEnvBool_DefaultTrue(t *testing.T) {
-	defer clearEnv("TEST_BOOL")
-
-	// Test unset with default true
-	if getEnvBool("TEST_BOOL", true) != true {
+	// Test unset with default true - use a variable name that shouldn't be set
+	if getEnvBool("_ARTOO_NONEXISTENT_BOOL_TRUE", true) != true {
 		t.Error("getEnvBool should return true default")
 	}
 
 	// Test set to false overrides default true
-	os.Setenv("TEST_BOOL", "false")
-	if getEnvBool("TEST_BOOL", true) != false {
+	t.Setenv("TEST_BOOL_OVERRIDE", "false")
+	if getEnvBool("TEST_BOOL_OVERRIDE", true) != false {
 		t.Error("getEnvBool should override default true with false")
 	}
 }
 
 func TestPartialEnvConfig(t *testing.T) {
-	defer clearEnv(
-		"ARTOO_MODEL",
-		"ARTOO_MAX_TOKENS",
-		"ARTOO_MAX_CONTEXT_TOKENS",
-		"ARTOO_TOOL_RESULT_MAX_CHARS",
-		"ARTOO_MAX_CONCURRENT_TOOLS",
-		"ARTOO_DEBUG",
-	)
-
 	// Set only model
-	os.Setenv("ARTOO_MODEL", "custom-model")
+	t.Setenv("ARTOO_MODEL", "custom-model")
 
 	cfg := LoadConfig()
 
@@ -221,12 +183,5 @@ func TestPartialEnvConfig(t *testing.T) {
 
 	if cfg.Debug != false {
 		t.Error("should use default debug")
-	}
-}
-
-// Helper to clear environment variables
-func clearEnv(vars ...string) {
-	for _, v := range vars {
-		os.Unsetenv(v)
 	}
 }

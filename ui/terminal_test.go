@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestTerminal_ConcurrentOnToolResult(t *testing.T) {
+func TestTerminal_ConcurrentOnToolResult(_ *testing.T) {
 	term := NewTerminal()
 
 	const numGoroutines = 20
