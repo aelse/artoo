@@ -3,6 +3,11 @@ package agent
 
 import "github.com/anthropics/anthropic-sdk-go"
 
+const (
+	defaultMaxTokens          = 8192
+	defaultMaxConcurrentTools = 4
+)
+
 // Config holds agent configuration.
 type Config struct {
 	Model               string // e.g. "claude-sonnet-4-20250514"
@@ -14,8 +19,8 @@ type Config struct {
 func DefaultConfig() Config {
 	return Config{
 		Model:              string(anthropic.ModelClaude4Sonnet20250514),
-		MaxTokens:          8192,
-		MaxConcurrentTools: 4,
+		MaxTokens:          defaultMaxTokens,
+		MaxConcurrentTools: defaultMaxConcurrentTools,
 	}
 }
 

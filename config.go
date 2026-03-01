@@ -9,6 +9,15 @@ import (
 	"github.com/aelse/artoo/conversation"
 )
 
+const (
+	defaultModel                = "claude-sonnet-4-20250514"
+	defaultMaxTokens            = 8192
+	defaultMaxConcurrentTools   = 4
+	defaultMaxContextTokens     = 180_000
+	defaultToolResultMaxChars   = 10_000
+	defaultDebug                = false
+)
+
 // AppConfig holds all configuration for the artoo application,
 // loaded from environment variables with sensible defaults.
 type AppConfig struct {
@@ -22,15 +31,15 @@ type AppConfig struct {
 func LoadConfig() AppConfig {
 	return AppConfig{
 		Agent: agent.Config{
-			Model:              getEnv("ARTOO_MODEL", "claude-sonnet-4-20250514"),
-			MaxTokens:          getEnvInt64("ARTOO_MAX_TOKENS", 8192),
-			MaxConcurrentTools: getEnvInt("ARTOO_MAX_CONCURRENT_TOOLS", 4),
+			Model:              getEnv("ARTOO_MODEL", defaultModel),
+			MaxTokens:          getEnvInt64("ARTOO_MAX_TOKENS", defaultMaxTokens),
+			MaxConcurrentTools: getEnvInt("ARTOO_MAX_CONCURRENT_TOOLS", defaultMaxConcurrentTools),
 		},
 		Conversation: conversation.Config{
-			MaxContextTokens:   getEnvInt("ARTOO_MAX_CONTEXT_TOKENS", 180_000),
-			ToolResultMaxChars: getEnvInt("ARTOO_TOOL_RESULT_MAX_CHARS", 10_000),
+			MaxContextTokens:   getEnvInt("ARTOO_MAX_CONTEXT_TOKENS", defaultMaxContextTokens),
+			ToolResultMaxChars: getEnvInt("ARTOO_TOOL_RESULT_MAX_CHARS", defaultToolResultMaxChars),
 		},
-		Debug: getEnvBool("ARTOO_DEBUG", false),
+		Debug: getEnvBool("ARTOO_DEBUG", defaultDebug),
 	}
 }
 
@@ -66,8 +75,8 @@ func getEnvInt64(key string, defaultValue int64) int64 {
 
 // getEnvBool returns the boolean value of the environment variable key,
 // or defaultValue if not set or invalid.
-// Valid true values: "1", "true", "yes", "on" (case-insensitive)
-// Valid false values: "0", "false", "no", "off" (case-insensitive)
+// Valid true values: "1", "true", "yes", "on" (case-insensitive).
+// Valid false values: "0", "false", "no", "off" (case-insensitive).
 func getEnvBool(key string, defaultValue bool) bool {
 	if value, exists := os.LookupEnv(key); exists {
 		switch value {

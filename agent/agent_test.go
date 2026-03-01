@@ -208,6 +208,7 @@ func TestExecuteToolsConcurrently_ErrorDoesNotAffectOthers(t *testing.T) {
 		for _, call := range cb.toolResultsCalls {
 			if call.name == "tool2" && call.isError {
 				foundError = true
+
 				break
 			}
 		}

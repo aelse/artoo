@@ -30,12 +30,12 @@ type grepMatch struct {
 	lineText string
 }
 
-// Ensure GrepTool implements TypedTool[GrepParams]
+// Ensure GrepTool implements TypedTool[GrepParams].
 var _ TypedTool[GrepParams] = (*GrepTool)(nil)
 
 type GrepTool struct{}
 
-// Call implements TypedTool.Call with strongly-typed parameters
+// Call implements TypedTool.Call with strongly-typed parameters.
 func (t *GrepTool) Call(params GrepParams) (string, error) {
 	if params.Pattern == "" {
 		return "", fmt.Errorf("pattern is required")
