@@ -111,7 +111,7 @@ func (t *GrepTool) Call(params GrepParams) (string, error) {
 	return t.formatOutput(params.Pattern, matches, truncated), nil
 }
 
-// parseRipgrepOutput parses the output from ripgrep into matches
+// parseRipgrepOutput parses the output from ripgrep into matches.
 func (t *GrepTool) parseRipgrepOutput(output string) ([]grepMatch, error) {
 	var matches []grepMatch
 
@@ -158,7 +158,7 @@ func (t *GrepTool) parseRipgrepOutput(output string) ([]grepMatch, error) {
 	return matches, nil
 }
 
-// formatOutput formats the matches into a human-readable output
+// formatOutput formats the matches into a human-readable output.
 func (t *GrepTool) formatOutput(pattern string, matches []grepMatch, truncated bool) string {
 	var output strings.Builder
 

@@ -12,7 +12,7 @@ import (
 	"github.com/anthropics/anthropic-sdk-go"
 )
 
-// Default patterns to ignore when listing files
+// Default patterns to ignore when listing files.
 var ignorePatterns = []string{
 	"node_modules/",
 	"__pycache__/",

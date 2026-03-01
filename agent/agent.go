@@ -32,6 +32,7 @@ type Agent struct {
 // New creates a new Agent with the given client and config.
 func New(client anthropic.Client, config Config) *Agent {
 	allTools := tool.AllTools
+
 	return &Agent{
 		client:          client,
 		conversation:    conversation.New(),

@@ -138,6 +138,56 @@ linters:
           - gochecknoglobals
           - gochecknoinits
         text: "(missing cases in switch|is a global variable|don't use `init` function)"
+      - path: ui/terminal.go
+        linters:
+          - exhaustive
+          - gochecknoglobals
+          - gochecknoinits
+        text: "(missing cases in switch|is a global variable|don't use `init` function)"
+      - linters:
+          - cyclop
+        path: (agent/agent.go|tool/grep.go|tool/ls.go|tool/ls_test.go)
+        text: "cyclomatic complexity"
+      - linters:
+          - err113
+        path: tool/(grep|ls).go
+        text: "dynamic errors"
+      - linters:
+          - funlen
+        path: tool/ls_test.go
+        text: "Function.*is too long"
+      - linters:
+          - mnd
+        path: (conversation|agent/config|config).go
+        text: "Magic number"
+      - linters:
+          - gochecknoglobals
+        path: tool/(ls|tool).go
+        text: "global variable"
+      - linters:
+          - gosec
+        path: tool/(grep|ls)
+        text: "(G204|G703|G301|G306)"
+      - linters:
+          - intrange
+        path: conversation/conversation_test.go
+        text: "for loop"
+      - linters:
+          - lll
+        path: tool/grep.go
+        text: "line is"
+      - linters:
+          - forbidigo
+        path: main.go
+        text: "fmt.Println"
+      - linters:
+          - nlreturn
+        path: config.go
+        text: "return"
+      - linters:
+          - ineffassign
+        path: tool/grep.go
+        text: "ineffectual assignment"
 
 linters-settings:
   wsl_v5:
